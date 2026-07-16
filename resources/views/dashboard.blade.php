@@ -102,34 +102,67 @@
             @endforeach
         </section>
 
-        <section class="grid-2">
-            <div class="table-wrap">
-                <h3 style="margin: 0 0 12px;">Data terbaru</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Nama Pekerjaan</th>
-                            <th>Instansi</th>
-                            <th>Tahun Anggaran</th>
-                            <th>Detail</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($recentRecords as $record)
-                            <tr>
-                                <td>{{ $record->id }}</td>
-                                <td>{{ $record->nama_pekerjaan }}</td>
-                                <td>{{ $record->nama_instansi }}</td>
-                                <td>{{ $record->tahun_anggaran }}</td>
-                                <td><a href="{{ route('records.show', $record) }}" style="color:#4aa3ff; text-decoration:none;">Lihat</a></td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="5">Belum ada data yang tersimpan.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
+        <section class="table-wrap" style="margin-top:16px;">
+            <div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div>
+                    <h3 style="margin:0 0 8px;">Daftar RUP</h3>
+                    <p style="margin:0; color:#98a8c2;">Tabel ini menampilkan isi database RUP langsung dari MySQL.</p>
+                </div>
+                <form method="GET" action="/" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" style="border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); color:#f3f7ff; padding:10px 14px; border-radius:999px; min-width:240px;" />
+                    <select name="tahun_anggaran" style="border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); color:#f3f7ff; padding:10px 14px; border-radius:999px; min-width:160px;">
+                        <option value="">Semua Tahun</option>
+                        @foreach ($years as $year)
+                            <option value="{{ $year }}" {{ request('tahun_anggaran') == $year ? 'selected' : '' }}>{{ $year }}</option>
+                        @endforeach
+                    </select>
+                    <button type="submit" style="border:none; background:#4aa3ff; color:#07111f; padding:10px 18px; border-radius:999px; font-weight:700;">Filter</button>
+                </form>
             </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>ID RUP</th>
+                        <th>Nama Pekerjaan</th>
+                        <th>Pagu</th>
+                        <th>Metode</th>
+                        <th>Instansi</th>
+                        <th>Tahun</th>
+                        <th>Created</th>
+                        <th>Detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($records as $record)
+                        <tr>
+                            <td>{{ $record->id }}</td>
+                            <td>{{ $record->id_rup }}</td>
+                            <td>{{ $record->nama_pekerjaan }}</td>
+                            <td>{{ $record->pagu }}</td>
+                            <td>{{ $record->nama_metode_pengadaan }}</td>
+                            <td>{{ $record->nama_instansi }}</td>
+                            <td>{{ $record->tahun_anggaran }}</td>
+                            <td>{{ optional($record->created_at)->format('d M Y') }}</td>
+                            <td><a href="{{ route('records.show', $record) }}" style="color:#4aa3ff; text-decoration:none;">Lihat</a></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="9">Belum ada data yang sesuai filter.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+
+            <div style="margin-top:18px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
+                @if ($records->onFirstPage() === false)
+                    <a href="{{ $records->previousPageUrl() }}" style="padding:8px 14px; border-radius:999px; background:#4aa3ff; color:#07111f; text-decoration:none;">Sebelumnya</a>
+                @endif
+                <span style="color:#98a8c2; align-self:center;">Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}</span>
+                @if ($records->hasMorePages())
+                    <a href="{{ $records->nextPageUrl() }}" style="padding:8px 14px; border-radius:999px; background:#4aa3ff; color:#07111f; text-decoration:none;">Selanjutnya</a>
+                @endif
+            </div>
+        </section>
 
             <div class="card">
                 <h3 style="margin-top:0;">OpenClaw Preview</h3>

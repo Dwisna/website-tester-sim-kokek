@@ -8,15 +8,33 @@ use Illuminate\Http\JsonResponse;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $query = RupRecord::query();
+
+        if ($request->filled('search')) {
+            $query->where('nama_pekerjaan', 'like', '%'.$request->search.'%')
+                ->orWhere('nama_instansi', 'like', '%'.$request->search.'%')
+                ->orWhere('id_rup', 'like', '%'.$request->search.'%');
+        }
+
+        if ($request->filled('tahun_anggaran')) {
+            $query->where('tahun_anggaran', $request->tahun_anggaran);
+        }
+
+        $records = $query->orderByDesc('created_at')->paginate(10)->withQueryString();
+        $years = RupRecord::select('tahun_anggaran')
+            ->whereNotNull('tahun_anggaran')
+            ->groupBy('tahun_anggaran')
+            ->orderBy('tahun_anggaran', 'desc')
+            ->pluck('tahun_anggaran');
+
         $stats = $this->buildStats();
-        $recentRecords = RupRecord::latest('created_at')->take(8)->get();
         $chartSeries = $this->buildChartSeries();
         $monthlySeries = $this->buildMonthlySeries();
         $statusBreakdown = $this->buildStatusBreakdown();
 
-        return view('dashboard', compact('stats', 'recentRecords', 'chartSeries', 'monthlySeries', 'statusBreakdown'));
+        return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown'));
     }
 
     public function dashboardApi(): JsonResponse
@@ -51,24 +69,27 @@ class DashboardController extends Controller
         $mockData = [
             'status' => 'Connected (mock)',
             'last_sync' => now()->subMinutes(9)->format('d M Y, H:i'),
-            'items' => 42,
+            'items' => RupRecord::count(),
             'summary' => 'Data scraping diproses secara simulasi untuk preview UI.',
         ];
 
-        return view('openclaw', compact('mockData'));
+        $chatMessages = [
+            ['role' => 'assistant', 'text' => 'Halo! Saya OpenClaw mock. Silakan tanyakan mengenai data RUP atau status import.'],
+            ['role' => 'user', 'text' => 'Tampilkan ringkasan data terbaru.'],
+        ];
+
+        return view('openclaw', compact('mockData', 'chatMessages'));
     }
 
-    public function chatApi(): JsonResponse
+    public function chatApi(Request $request): JsonResponse
     {
+        $message = $request->input('message', 'Halo');
+        $responseText = $this->buildChatResponse($message);
+
         return response()->json([
             'success' => true,
             'data' => [
-                'assistant' => 'Saya siap membantu Anda menelaah data RUP, menganalisis tren pengadaan, dan menyiapkan ringkasan executive dashboard.',
-                'suggestions' => [
-                    'Ringkas data pengadaan bulan ini',
-                    'Tampilkan instansi dengan nilai terbesar',
-                    'Jelaskan tren tender dari tahun sebelumnya',
-                ],
+                'message' => $responseText,
             ],
         ]);
     }
@@ -164,5 +185,24 @@ class DashboardController extends Controller
             ['label' => 'Review', 'value' => 9],
             ['label' => 'Selesai', 'value' => 11],
         ];
+    }
+
+    private function buildChatResponse(string $message): string
+    {
+        $messageLower = strtolower($message);
+
+        if (str_contains($messageLower, 'ringkas')) {
+            return 'Saat ini terdapat ' . RupRecord::count() . ' record dalam database Anda. Data terbaru muncul di dashboard tabel.';
+        }
+
+        if (str_contains($messageLower, 'instansi')) {
+            return 'Instansi dengan item terbanyak adalah Kementerian Kominfo dan Badan Pusat Statistik pada contoh data demo.';
+        }
+
+        if (str_contains($messageLower, 'trend')) {
+            return 'Tren menunjukkan volume data meningkat pada kuartal kedua, dengan fokus pada pengadaan TI dan konsultansi.';
+        }
+
+        return 'Ini adalah respons OpenClaw mock. Silakan beri perintah seperti "Ringkas data terbaru" atau "Tampilkan status import".';
     }
 }

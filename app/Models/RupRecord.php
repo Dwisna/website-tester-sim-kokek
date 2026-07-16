@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class RupRecord extends Model
 {
-    protected $table = 'rup_records';
+    protected $table = 'import_rencana_umum_pengadaan';
 
     protected $fillable = [
         'id_rup',

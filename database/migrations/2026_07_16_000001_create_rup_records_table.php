@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('rup_records', function (Blueprint $table) {
+        Schema::create('import_rencana_umum_pengadaan', function (Blueprint $table) {
             $table->id();
             $table->string('id_rup')->nullable();
             $table->text('nama_pekerjaan')->nullable();
