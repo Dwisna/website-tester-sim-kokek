@@ -32,9 +32,12 @@
         .nav a { text-decoration: none; color: var(--muted); padding: 12px 14px; border-radius: 10px; transition: .2s ease; }
         .nav a.active, .nav a:hover { background: var(--panel); color: var(--text); }
         .main { padding: 24px 28px 36px; }
-        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; }
         .topbar .title { font-size: 1.8rem; font-weight: 700; }
         .topbar .subtitle { color: var(--muted); margin-top: 4px; }
+        .topbar-actions { display: flex; align-items: center; gap: 10px; }
+        .bell-btn { position: relative; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border); background: var(--panel); color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; }
+        .bell-btn .dot { position:absolute; top:8px; right:8px; width:10px; height:10px; border-radius:50%; background: #ff6b6b; }
         .pill { border: 1px solid var(--border); padding: 10px 14px; border-radius: 999px; color: var(--muted); }
         .hero { background: linear-gradient(120deg, var(--panel) 0%, var(--panel-2) 100%); border: 1px solid var(--border); border-radius: 24px; padding: 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .hero h2 { font-size: 1.35rem; margin: 0 0 8px; }
@@ -55,6 +58,14 @@
         th, td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; font-size: .95rem; }
         th { color: var(--muted); font-weight: 600; }
         .chart-box { margin-top: 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 16px; }
+        .chat-widget { margin-top: 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 18px; }
+        .chat-thread { display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow: auto; padding-right: 4px; }
+        .bubble { max-width: 82%; padding: 10px 12px; border-radius: 14px; line-height: 1.5; }
+        .bubble.assistant { align-self: flex-start; background: rgba(74,163,255,0.16); color: #eaf4ff; }
+        .bubble.user { align-self: flex-end; background: rgba(61,220,151,0.16); color: #ebfff4; }
+        .chat-input-row { display:flex; gap:10px; margin-top:12px; }
+        .chat-input-row input { flex:1; border-radius:999px; border:1px solid var(--border); background: rgba(255,255,255,0.04); color:#f3f7ff; padding: 10px 14px; }
+        .chat-input-row button { border:none; border-radius:999px; background: var(--accent-2); color:#07111f; padding:10px 16px; font-weight:700; cursor:pointer; }
         .bar-list { display: flex; align-items: flex-end; gap: 10px; height: 180px; margin-top: 14px; }
         .bar-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .bar { width: 100%; background: linear-gradient(180deg, var(--accent-2), var(--accent)); border-radius: 8px 8px 0 0; min-height: 6px; height: 0; }
@@ -69,11 +80,11 @@
     <aside class="sidebar">
         <div class="brand">RUP<span> Intelligence</span></div>
         <div class="nav">
-            <a class="active" href="#">Dashboard</a>
-            <a href="#">API Chat</a>
-            <a href="#">History</a>
-            <a href="#">Download</a>
-            <a href="#">Notification</a>
+            <a class="active" href="{{ route('dashboard') }}">Dashboard</a>
+            <a href="{{ url('/openclaw') }}">API Chat</a>
+            <a href="{{ route('history') }}">History</a>
+            <a href="{{ url('/api/download') }}">Download</a>
+            <a href="{{ route('notifications') }}">Notification</a>
         </div>
     </aside>
     <main class="main">
@@ -82,7 +93,13 @@
                 <div class="title">Dashboard</div>
                 <div class="subtitle">Integrasi data RUP dari database {{ config('database.connections.'.config('database.default').'.database') ?? 'magang_db' }}</div>
             </div>
-            <div class="pill">Realtime monitoring • {{ now()->format('d M Y') }}</div>
+            <div class="topbar-actions">
+                <a href="{{ route('notifications') }}" class="bell-btn" aria-label="Notifications">
+                    🔔
+                    <span class="dot"></span>
+                </a>
+                <div class="pill">Realtime monitoring • {{ now()->format('d M Y') }}</div>
+            </div>
         </div>
 
         <section class="hero">
@@ -187,6 +204,23 @@
             </div>
         </section>
 
+        <section class="chat-widget">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+                <div>
+                    <h3 style="margin:0;">Customer Service Chat</h3>
+                    <p style="margin:4px 0 0; color:#98a8c2;">Widget bubble chat yang mengirim pesan ke Laravel dulu sebelum diarahkan ke n8n.</p>
+                </div>
+                <span class="pill">Live • n8n-ready</span>
+            </div>
+            <div class="chat-thread" id="chat-thread">
+                <div class="bubble assistant">Halo! Saya asisten CS. Silakan tanyakan kebutuhan Anda tentang data RUP.</div>
+            </div>
+            <div class="chat-input-row">
+                <input id="customer-chat-input" type="text" placeholder="Ketik pesan untuk customer service..." />
+                <button id="customer-chat-send">Kirim</button>
+            </div>
+        </section>
+
         <section class="grid-2">
             <div class="card">
                 <h3 style="margin-top:0;">Trend bulanan</h3>
@@ -231,6 +265,35 @@
                 }
             });
         });
+
+    const thread = document.getElementById('chat-thread');
+    const input = document.getElementById('customer-chat-input');
+    const send = document.getElementById('customer-chat-send');
+
+    function addBubble(role, text) {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble ' + role;
+        bubble.textContent = text;
+        thread.appendChild(bubble);
+        thread.scrollTop = thread.scrollHeight;
+    }
+
+    send.addEventListener('click', () => {
+        const text = input.value.trim();
+        if (!text) return;
+        addBubble('user', text);
+        input.value = '';
+
+        fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ message: text, source: 'dashboard', channel: 'web' })
+        })
+        .then((response) => response.json())
+        .then((payload) => {
+            addBubble('assistant', payload?.data?.message || 'Terima kasih, pesan Anda sudah diterima.');
+        });
+    });
 </script>
 </body>
 </html>

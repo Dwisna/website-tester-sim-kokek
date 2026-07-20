@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\N8nWebhookLog;
 use App\Models\RupRecord;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -94,14 +95,26 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function historyPage()
+    {
+        $history = N8nWebhookLog::latest('created_at')->take(20)->get();
+
+        return view('history', compact('history'));
+    }
+
     public function historyApi(): \Illuminate\Http\JsonResponse
     {
+        $history = N8nWebhookLog::latest('created_at')->take(10)->get()->map(function ($item) {
+            return [
+                'event' => $item->event ?? 'webhook',
+                'detail' => $item->message ?? 'Pesan diterima',
+                'timestamp' => $item->created_at?->toDateTimeString(),
+            ];
+        });
+
         return response()->json([
             'success' => true,
-            'data' => [
-                ['event' => 'Sinkronisasi data RUP', 'detail' => 'Data diambil dari sumber utama', 'timestamp' => now()->subHours(2)->toDateTimeString()],
-                ['event' => 'Pembaruan dashboard', 'detail' => 'Metric dan summary diperbarui', 'timestamp' => now()->subHours(5)->toDateTimeString()],
-            ],
+            'data' => $history,
         ]);
     }
 
@@ -124,6 +137,39 @@ class DashboardController extends Controller
             'data' => [
                 ['title' => 'Notifikasi sistem', 'message' => 'Ada 12 record baru yang menunggu validasi.', 'priority' => 'high'],
                 ['title' => 'Penyedia terdekat', 'message' => 'Terdapat 4 penawaran yang akan segera ditinjau.', 'priority' => 'medium'],
+            ],
+        ]);
+    }
+
+    public function notificationsPage()
+    {
+        return view('notifications');
+    }
+
+    public function n8nWebhook(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        $message = $payload['message'] ?? 'Pesan masuk tanpa isi';
+        $customer = $payload['customer'] ?? 'unknown';
+        $event = $payload['event'] ?? 'customer_message';
+        $channel = $payload['channel'] ?? 'web';
+
+        N8nWebhookLog::create([
+            'source' => $payload['source'] ?? 'n8n',
+            'event' => $event,
+            'channel' => $channel,
+            'payload' => $payload,
+            'message' => $message,
+            'customer' => $customer,
+            'status' => 'accepted',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'status' => 'accepted',
+                'message' => 'Webhook diterima dan disimpan sebelum diproses lebih lanjut.',
+                'event' => $event,
             ],
         ]);
     }
