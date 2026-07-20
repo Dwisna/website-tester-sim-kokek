@@ -1,59 +1,140 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# RUP Intelligence Dashboard
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Portal web untuk pengelolaan dan monitoring data **RUP (Rencana Umum Pengadaan)**. Aplikasi ini dibangun dengan Laravel 12 dan menampilkan data pengadaan secara terstruktur, lengkap dengan integrasi API, chat customer service, dan preview modul OpenClaw.
 
-## About Laravel
+## Fitur
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Dashboard interaktif** — statistik, tabel data RUP, grafik distribusi tahunan, dan trend bulanan
+- **Pencarian & filter** — cari berdasarkan pekerjaan, instansi, atau ID RUP; filter berdasarkan tahun anggaran
+- **Detail record** — halaman detail lengkap untuk setiap entri RUP
+- **OpenClaw Preview** — antarmuka mock untuk integrasi scraping data
+- **Customer Service Chat** — widget chat yang terhubung ke API Laravel (siap diintegrasikan dengan n8n)
+- **History & Notifications** — riwayat webhook dan daftar pemberitahuan
+- **Tema gelap & terang** — toggle tema di setiap halaman, preferensi disimpan di browser
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Tema Gelap / Terang
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Website mendukung dua mode tampilan:
 
-## Learning Laravel
+| Mode | Keterangan |
+|------|------------|
+| **Gelap** | Tampilan default dengan latar gelap (cocok untuk monitoring malam hari) |
+| **Terang** | Tampilan cerah dengan kontras tinggi untuk kondisi pencahayaan terang |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Cara mengganti tema:
+1. Klik tombol **☀️ / 🌙** di pojok kanan atas halaman
+2. Pilihan tema otomatis tersimpan di `localStorage` browser
+3. Saat pertama kali dibuka, tema mengikuti preferensi sistem operasi jika belum pernah dipilih
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Persyaratan
 
-## Laravel Sponsors
+- PHP >= 8.2
+- Composer
+- Node.js >= 18
+- MySQL (atau SQLite untuk development)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Instalasi
 
-### Premium Partners
+```bash
+# Clone repository
+git clone <url-repo> website-sim-kokek
+cd website-sim-kokek
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# Install dependensi PHP & Node
+composer install
+npm install
 
-## Contributing
+# Salin konfigurasi environment
+cp .env.example .env
+php artisan key:generate
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Atur koneksi database di .env
+# DB_CONNECTION=mysql
+# DB_DATABASE=magang_db
+# DB_USERNAME=root
+# DB_PASSWORD=
 
-## Code of Conduct
+# Jalankan migrasi & seeder
+php artisan migrate
+php artisan db:seed
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Build asset frontend
+npm run build
+```
 
-## Security Vulnerabilities
+Atau gunakan script setup bawaan:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+composer run setup
+```
 
-## License
+## Menjalankan Aplikasi
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+**Development (server + queue + Vite):**
+
+```bash
+composer run dev
+```
+
+**Manual:**
+
+```bash
+# Terminal 1 — Laravel server
+php artisan serve
+
+# Terminal 2 — Vite dev server
+npm run dev
+```
+
+Buka browser di [http://localhost:8000](http://localhost:8000).
+
+## Struktur Halaman
+
+| Route | Halaman |
+|-------|---------|
+| `/` | Dashboard utama |
+| `/records/{id}` | Detail record RUP |
+| `/openclaw` | Preview integrasi OpenClaw |
+| `/history` | Riwayat webhook & pesan |
+| `/notifications` | Daftar notifikasi |
+
+## API Endpoints
+
+| Method | Endpoint | Keterangan |
+|--------|----------|------------|
+| `GET` | `/api/dashboard` | Data statistik dashboard |
+| `POST` | `/api/chat` | Kirim pesan chat CS |
+| `POST` | `/api/n8n/webhook` | Webhook dari n8n |
+| `GET` | `/api/history` | Data history (JSON) |
+| `GET` | `/api/download` | Download data |
+| `GET` | `/api/notifications` | Data notifikasi (JSON) |
+
+## Struktur Frontend
+
+```
+resources/
+├── css/
+│   └── app.css          # Variabel tema + styles global
+├── js/
+│   ├── app.js           # Entry point Vite
+│   └── theme.js         # Logika toggle tema gelap/terang
+└── views/
+    ├── components/
+    │   ├── theme-init.blade.php    # Script anti-flash saat load
+    │   └── theme-toggle.blade.php  # Tombol toggle tema
+    └── layouts/
+        ├── app.blade.php           # Layout dasar
+        └── dashboard.blade.php     # Layout dengan sidebar
+```
+
+## Testing
+
+```bash
+composer run test
+# atau
+php artisan test
+```
+
+## Lisensi
+
+Proyek ini menggunakan [MIT License](https://opensource.org/licenses/MIT).

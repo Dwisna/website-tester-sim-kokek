@@ -1,42 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenClaw Preview</title>
-    <style>
-        body { margin:0; font-family:Inter,Segoe UI,sans-serif; background:#07111f; color:#f3f7ff; }
-        .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 20px 48px; }
-        .card { background:#101c31; border:1px solid rgba(255,255,255,0.08); border-radius:22px; padding:24px; margin-bottom:18px; }
-        .grid { display:grid; grid-template-columns: 1.2fr .8fr; gap:18px; }
-        .pill { display:inline-block; padding:8px 12px; border-radius:999px; background:rgba(61,220,151,0.14); color:#8eeeb7; font-size:.9rem; }
-        .metric { font-size:2rem; font-weight:700; }
-        .list { margin: 0; padding-left: 18px; color:#98a8c2; }
-        .chat-window { background:#0b1727; border:1px solid rgba(255,255,255,0.12); border-radius:24px; padding:20px; min-height:420px; display:flex; flex-direction:column; gap:18px; }
-        .message { max-width: 80%; line-height:1.6; padding:14px 18px; border-radius:20px; position:relative; }
-        .message.assistant { align-self:flex-start; background:rgba(74,163,255,0.15); border:1px solid rgba(74,163,255,0.22); color:#e8f2ff; }
-        .message.user { align-self:flex-end; background:rgba(61,220,151,0.12); border:1px solid rgba(61,220,151,0.22); color:#ddffed; }
-        .message small { display:block; margin-top:6px; color:#8aa5be; font-size:.86rem; }
-        .chat-input { display:flex; gap:12px; margin-top:auto; }
-        .chat-input input { flex:1; border-radius:999px; border:1px solid rgba(255,255,255,0.12); background:#0b1727; color:#f3f7ff; padding:14px 18px; outline:none; }
-        .chat-input button { border:none; border-radius:999px; background:#4aa3ff; color:#07111f; font-weight:700; padding:14px 22px; cursor:pointer; }
-        .chat-input button:hover { background:#3a8cee; }
-        @media (max-width: 768px) { .grid { grid-template-columns:1fr; } }
-    </style>
-</head>
-<body>
+@extends('layouts.app')
+
+@section('title', 'OpenClaw Preview')
+
+@section('content')
 <div class="wrap">
+    <div class="page-header">
+        <div></div>
+        <div class="page-header-actions">
+            @include('components.theme-toggle')
+            <a href="{{ route('dashboard') }}" class="btn-primary" style="padding:8px 14px;">← Dashboard</a>
+        </div>
+    </div>
+
     <div class="card">
         <h1 style="margin-top:0;">OpenClaw</h1>
-        <p style="color:#98a8c2;">Preview antarmuka mock untuk integrasi scraping data dari OpenClaw. Saat setup selesai, modul ini bisa dipakai untuk mengirim permintaan dan melihat status sinkronisasi.</p>
-        <div class="pill">{{ $mockData['status'] }}</div>
+        <p class="text-muted">Preview antarmuka mock untuk integrasi scraping data dari OpenClaw. Saat setup selesai, modul ini bisa dipakai untuk mengirim permintaan dan melihat status sinkronisasi.</p>
+        <span class="pill-success">{{ $mockData['status'] }}</span>
     </div>
 
     <div class="grid">
         <div class="card">
             <h3 style="margin-top:0;">Ringkasan</h3>
             <div class="metric">{{ $mockData['items'] }}</div>
-            <p style="color:#98a8c2;">item data siap diproses dari hasil scraping mock.</p>
+            <p class="text-muted">item data siap diproses dari hasil scraping mock.</p>
             <p>{{ $mockData['summary'] }}</p>
         </div>
         <div class="card">
@@ -72,6 +58,9 @@
         </ul>
     </div>
 </div>
+@endsection
+
+@push('scripts')
 <script>
     const chatWindow = document.getElementById('chat-window');
     const chatInput = document.getElementById('chat-input');
@@ -105,5 +94,4 @@
         });
     });
 </script>
-</body>
-</html>
+@endpush
