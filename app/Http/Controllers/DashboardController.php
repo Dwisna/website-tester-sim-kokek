@@ -218,13 +218,21 @@ class DashboardController extends Controller
     {
         try {
             $payload = $request->all();
-            $recordPayload = $payload['records'] ?? [];
+            $recordPayload = $payload['records'] ?? null;
 
             // Kalau records dikirim sebagai JSON string (bukan array), decode dulu
             if (is_string($recordPayload)) {
                 $decoded = json_decode($recordPayload, true);
                 $recordPayload = is_array($decoded) ? $decoded : [];
             }
+
+            // Kalau field "records" tidak dikirim sama sekali, tapi payload
+            // punya "id_rup" langsung di root, anggap itu 1 record tunggal (flat object).
+            if ($recordPayload === null && isset($payload['id_rup'])) {
+                $recordPayload = [$payload];
+            }
+
+            $recordPayload = $recordPayload ?? [];
 
             if ($request->hasFile('file')) {
                 $recordPayload = array_merge($recordPayload, $this->parseN8nImportFile($request->file('file')));
