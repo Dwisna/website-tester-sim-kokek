@@ -18,9 +18,16 @@
     </div>
 
     <div class="card">
-        <div class="item"><span style="font-size:1.2rem; margin-right:8px;">🔔</span> Ada 12 record baru menunggu validasi.</div>
-        <div class="item"><span style="font-size:1.2rem; margin-right:8px;">🔔</span> Terdapat 4 penawaran yang hampir jatuh tempo.</div>
-        <div class="item"><span style="font-size:1.2rem; margin-right:8px;">🔔</span> Customer service menerima 3 pesan dari n8n.</div>
+        @forelse ($notifications as $notification)
+            <div class="item">
+                <span style="font-size:1.2rem; margin-right:8px;">🔔</span>
+                <strong>{{ $notification->title }}</strong>
+                <div class="text-muted" style="margin-top:4px;">{{ $notification->message }}</div>
+                <small style="display:block; margin-top:6px;">{{ ucfirst($notification->priority) }} • {{ $notification->created_at->diffForHumans() }}</small>
+            </div>
+        @empty
+            <div class="item">Belum ada notifikasi.</div>
+        @endforelse
     </div>
 </div>
 @endsection

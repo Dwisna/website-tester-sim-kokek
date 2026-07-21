@@ -41,16 +41,21 @@
                 <h3 style="margin:0 0 8px;">Daftar RUP</h3>
                 <p class="text-muted" style="margin:0;">Tabel ini menampilkan isi database RUP langsung dari MySQL.</p>
             </div>
-            <form method="GET" action="/" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                <input class="form-input" type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" style="min-width:240px;" />
-                <select class="form-select" name="tahun_anggaran" style="min-width:160px;">
-                    <option value="">Semua Tahun</option>
-                    @foreach ($years as $year)
-                        <option value="{{ $year }}" {{ request('tahun_anggaran') == $year ? 'selected' : '' }}>{{ $year }}</option>
-                    @endforeach
-                </select>
-                <button type="submit" class="btn-primary" style="padding:10px 18px;">Filter</button>
-            </form>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <a href="{{ url('/api/download') }}" class="btn-primary" style="padding:10px 18px; display:inline-flex; align-items:center; gap:6px;">
+                    ⬇ Download
+                </a>
+                <form method="GET" action="/" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <input class="form-input" type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" style="min-width:240px;" />
+                    <select class="form-select" name="tahun_anggaran" style="min-width:160px;">
+                        <option value="">Semua Tahun</option>
+                        @foreach ($years as $year)
+                            <option value="{{ $year }}" {{ request('tahun_anggaran') == $year ? 'selected' : '' }}>{{ $year }}</option>
+                        @endforeach
+                    </select>
+                    <button type="submit" class="btn-primary" style="padding:10px 18px;">Filter</button>
+                </form>
+            </div>
         </div>
 
         <table>
@@ -102,13 +107,8 @@
         <p class="text-muted" style="margin-bottom:12px;">Mock interface untuk integrasi scraping data dari OpenClaw.</p>
         <a href="{{ route('openclaw') }}" class="btn-primary">Buka preview</a>
         <div class="preview-box">
-            <div style="font-size:1.2rem; font-weight:700;">42 item</div>
-            <div class="text-muted" style="margin-top:6px;">Sinkronisasi mock siap dipakai ketika OpenClaw selesai di-setup.</div>
-        </div>
-    </div>
-
-    <section class="chart-box">
-        <h3 style="margin:0;">Distribusi tahunan</h3>
+                <div style="font-size:1.2rem; font-weight:700;">{{ number_format($totalRecords, 0, ',', '.') }} item</div>
+                <div class="text-muted" style="margin-top:6px;">Data ini langsung diambil dari tabel RUP, siap dikirim ke n8n.</div>
         <div class="bar-list">
             @foreach ($chartSeries as $item)
                 <div class="bar-item">
@@ -119,24 +119,7 @@
         </div>
     </section>
 
-    <section class="chat-widget">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
-            <div>
-                <h3 style="margin:0;">Customer Service Chat</h3>
-                <p class="text-muted" style="margin:4px 0 0;">Widget bubble chat yang mengirim pesan ke Laravel dulu sebelum diarahkan ke n8n.</p>
-            </div>
-            <span class="pill">Live • n8n-ready</span>
-        </div>
-        <div class="chat-thread" id="chat-thread">
-            <div class="bubble assistant">Halo! Saya asisten CS. Silakan tanyakan kebutuhan Anda tentang data RUP.</div>
-        </div>
-        <div class="chat-input-row">
-            <input id="customer-chat-input" type="text" placeholder="Ketik pesan untuk customer service..." />
-            <button id="customer-chat-send" class="btn-primary">Kirim</button>
-        </div>
-    </section>
-
-    <section class="grid-2">
+    <section class="chart-box">
         <div class="card">
             <h3 style="margin-top:0;">Trend bulanan</h3>
             <div class="bar-list" style="height:160px;">
@@ -180,34 +163,5 @@
                 }
             });
         });
-
-    const thread = document.getElementById('chat-thread');
-    const input = document.getElementById('customer-chat-input');
-    const send = document.getElementById('customer-chat-send');
-
-    function addBubble(role, text) {
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble ' + role;
-        bubble.textContent = text;
-        thread.appendChild(bubble);
-        thread.scrollTop = thread.scrollHeight;
-    }
-
-    send.addEventListener('click', () => {
-        const text = input.value.trim();
-        if (!text) return;
-        addBubble('user', text);
-        input.value = '';
-
-        fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ message: text, source: 'dashboard', channel: 'web' })
-        })
-        .then((response) => response.json())
-        .then((payload) => {
-            addBubble('assistant', payload?.data?.message || 'Terima kasih, pesan Anda sudah diterima.');
-        });
-    });
 </script>
 @endpush

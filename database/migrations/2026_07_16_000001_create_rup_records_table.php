@@ -48,6 +48,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('rup_records');
+        Schema::dropIfExists('import_rencana_umum_pengadaan');
     }
 };

@@ -10,6 +10,7 @@
 </head>
 <body>
     @yield('content')
+    @include('components.floating-chat')
     @stack('scripts')
 </body>
 </html>
