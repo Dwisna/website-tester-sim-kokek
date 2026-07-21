@@ -8,6 +8,7 @@ use App\Models\SystemNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -106,7 +107,7 @@ class DashboardController extends Controller
         return view('history', compact('history'));
     }
 
-    public function historyApi(): \Illuminate\Http\JsonResponse
+    public function historyApi(): JsonResponse
     {
         $history = N8nWebhookLog::latest('created_at')->take(10)->get()->map(function ($item) {
             return [
@@ -122,7 +123,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function downloadApi(): \Illuminate\Http\JsonResponse
+    public function downloadApi(): JsonResponse
     {
         return response()->json([
             'success' => true,
@@ -134,7 +135,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function notificationsApi(): \Illuminate\Http\JsonResponse
+    public function notificationsApi(): JsonResponse
     {
         $notifications = SystemNotification::latest('created_at')->take(20)->get()->map(function ($item) {
             return [
@@ -201,77 +202,116 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * Endpoint utama untuk n8n inject data RUP ke database.
+     *
+     * Body JSON:
+     * {
+     *   "source": "n8n",
+     *   "event": "n8n_import",
+     *   "records": [ { "id_rup": "...", "nama_pekerjaan": "...", ... } ]
+     * }
+     *
+     * Atau kirim file (multipart/form-data) di field "file" (.json / .csv)
+     */
     public function n8nImport(Request $request): JsonResponse
     {
-        $payload = $request->all();
-        $recordPayload = $payload['records'] ?? [];
+        try {
+            $payload = $request->all();
+            $recordPayload = $payload['records'] ?? [];
 
-        if ($request->hasFile('file')) {
-            $recordPayload = array_merge($recordPayload, $this->parseN8nImportFile($request->file('file')));
-        }
+            // Kalau records dikirim sebagai JSON string (bukan array), decode dulu
+            if (is_string($recordPayload)) {
+                $decoded = json_decode($recordPayload, true);
+                $recordPayload = is_array($decoded) ? $decoded : [];
+            }
 
-        if (!is_array($recordPayload) || count($recordPayload) === 0) {
+            if ($request->hasFile('file')) {
+                $recordPayload = array_merge($recordPayload, $this->parseN8nImportFile($request->file('file')));
+            }
+
+            if (!is_array($recordPayload) || count($recordPayload) === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payload tidak berisi data RUP untuk diimpor. Pastikan mengirim field "records" berupa array of object.',
+                ], 422);
+            }
+
+            $created = 0;
+            $updated = 0;
+            $skipped = 0;
+            $errors = [];
+
+            foreach ($recordPayload as $i => $recordData) {
+                if (!is_array($recordData)) {
+                    $skipped++;
+                    $errors[] = "Index {$i}: data bukan object/array, dilewati.";
+                    continue;
+                }
+
+                $normalized = $this->normalizeRupData($recordData);
+
+                if (empty($normalized['id_rup'])) {
+                    $skipped++;
+                    $errors[] = "Index {$i}: field 'id_rup' kosong, wajib diisi, dilewati.";
+                    continue;
+                }
+
+                $record = RupRecord::updateOrCreate([
+                    'id_rup' => $normalized['id_rup'],
+                ], $normalized);
+
+                if ($record->wasRecentlyCreated) {
+                    $created++;
+                } else {
+                    $updated++;
+                }
+            }
+
+            $event = $payload['event'] ?? 'n8n_import';
+            $message = $payload['message'] ?? "Import selesai: {$created} baru, {$updated} diperbarui, {$skipped} dilewati.";
+
+            N8nWebhookLog::create([
+                'source' => $payload['source'] ?? 'n8n',
+                'event' => $event,
+                'channel' => $payload['channel'] ?? 'api',
+                'payload' => $payload,
+                'message' => $message,
+                'customer' => $payload['customer'] ?? 'system',
+                'status' => 'imported',
+            ]);
+
+            SystemNotification::create([
+                'title' => $payload['title'] ?? 'Import data n8n',
+                'message' => $message,
+                'type' => 'n8n_import',
+                'priority' => $payload['priority'] ?? 'high',
+                'link' => $payload['link'] ?? null,
+                'source' => $payload['source'] ?? 'n8n',
+                'payload' => $payload,
+                'is_read' => false,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'created' => $created,
+                    'updated' => $updated,
+                    'skipped' => $skipped,
+                    'errors' => $errors,
+                    'message' => $message,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('n8nImport error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Payload tidak berisi data RUP untuk diimpor.',
-            ], 422);
+                'message' => 'Terjadi kesalahan saat memproses import: '.$e->getMessage(),
+            ], 500);
         }
-
-        $created = 0;
-        $updated = 0;
-        foreach ($recordPayload as $recordData) {
-            if (!is_array($recordData)) {
-                continue;
-            }
-
-            $normalized = $this->normalizeRupData($recordData);
-            if (empty($normalized['id_rup'])) {
-                continue;
-            }
-
-            $record = RupRecord::updateOrCreate([
-                'id_rup' => $normalized['id_rup'],
-            ], $normalized);
-
-            if ($record->wasRecentlyCreated) {
-                $created++;
-            } else {
-                $updated++;
-            }
-        }
-
-        $event = $payload['event'] ?? 'n8n_import';
-        $message = $payload['message'] ?? "Import selesai: {$created} baru, {$updated} diperbarui.";
-
-        N8nWebhookLog::create([
-            'source' => $payload['source'] ?? 'n8n',
-            'event' => $event,
-            'channel' => $payload['channel'] ?? 'api',
-            'payload' => $payload,
-            'message' => $message,
-            'customer' => $payload['customer'] ?? 'system',
-            'status' => 'imported',
-        ]);
-
-        SystemNotification::create([
-            'title' => $payload['title'] ?? 'Import data n8n',
-            'message' => $message,
-            'type' => 'n8n_import',
-            'priority' => $payload['priority'] ?? 'high',
-            'link' => $payload['link'] ?? null,
-            'source' => $payload['source'] ?? 'n8n',
-            'payload' => $payload,
-            'is_read' => false,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'created' => $created,
-                'updated' => $updated,
-                'message' => $message,
-            ],
-        ]);
     }
 
     private function parseN8nImportFile(UploadedFile $file): array
@@ -289,25 +329,46 @@ class DashboardController extends Controller
             $rows = array_map('str_getcsv', $lines);
             $header = array_map('trim', $rows[0] ?? []);
             $result = [];
+
             foreach (array_slice($rows, 1) as $row) {
+                // Lindungi dari baris CSV yang jumlah kolomnya tidak sama dengan header
+                if (count($row) !== count($header)) {
+                    continue;
+                }
                 $result[] = array_combine($header, $row);
             }
+
             return $result;
         }
 
         return [];
     }
 
+    /**
+     * Field yang boleh diisi lewat n8n, sesuai $fillable di model RupRecord.
+     * Field boolean (is_*) otomatis dinormalisasi jadi 0/1.
+     */
     private function normalizeRupData(array $record): array
     {
         $model = new RupRecord();
         $fillable = $model->getFillable();
         $normalized = [];
 
-        foreach ($fillabe as $field) {
-            if (array_key_exists($field, $record)) {
-                $normalized[$field] = $record[$field];
+        $booleanFields = ['is_sirup', 'is_import', 'is_pekerjaan_prospek', 'is_status_kirim_penawaran'];
+
+        foreach ($fillable as $field) {
+            if (!array_key_exists($field, $record)) {
+                continue;
             }
+
+            $value = $record[$field];
+
+            if (in_array($field, $booleanFields, true)) {
+                $normalized[$field] = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+                continue;
+            }
+
+            $normalized[$field] = $value;
         }
 
         if (isset($record['created_at'])) {
@@ -367,7 +428,7 @@ class DashboardController extends Controller
             $count = RupRecord::whereYear('created_at', $date->year)
                 ->whereMonth('created_at', $date->month)
                 ->count();
-            $months->push([ 'month' => $label, 'value' => $count, 'bar_height' => max(24, min(160, $count * 12)) ]);
+            $months->push(['month' => $label, 'value' => $count, 'bar_height' => max(24, min(160, $count * 12))]);
         }
 
         return $months->all();
