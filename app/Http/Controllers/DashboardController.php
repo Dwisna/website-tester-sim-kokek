@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\RupExport;
 use App\Models\N8nWebhookLog;
 use App\Models\RupRecord;
 use App\Models\SystemNotification;
@@ -9,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
 {
@@ -484,5 +486,13 @@ class DashboardController extends Controller
         }
 
         return 'Ini adalah respons OpenClaw mock. Silakan beri perintah seperti "Ringkas data terbaru" atau "Tampilkan status import".';
+    }
+    
+    public function download(Request $request)
+    {
+        return Excel::download(
+        new RupExport($request->query('search'), $request->query('tahun_anggaran')),
+        'data-rup-' . now()->format('Y-m-d') . '.xlsx'
+        );
     }
 }

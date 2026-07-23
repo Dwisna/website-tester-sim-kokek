@@ -42,8 +42,8 @@
                 <p class="text-muted" style="margin:0;">Tabel ini menampilkan isi database RUP langsung dari MySQL.</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                <a href="{{ url('/api/download') }}" class="btn-primary" style="padding:10px 18px; display:inline-flex; align-items:center; gap:6px;">
-                    ⬇ Download
+                <a href="{{ route('rup.download', request()->query()) }}" class="btn-primary" style="padding:10px 18px; display:inline-flex; align-items:center; gap:6px;">
+                    ⬇ Download Excel
                 </a>
                 <form method="GET" action="/" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                     <input class="form-input" type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" style="min-width:240px;" />
@@ -102,66 +102,146 @@
         </div>
     </section>
 
-    <div class="card" style="margin-top:16px;">
+    <!-- <section class="card" style="margin-top:16px;">
         <h3 style="margin-top:0;">OpenClaw Preview</h3>
         <p class="text-muted" style="margin-bottom:12px;">Mock interface untuk integrasi scraping data dari OpenClaw.</p>
         <a href="{{ route('openclaw') }}" class="btn-primary">Buka preview</a>
-        <div class="preview-box">
-                <div style="font-size:1.2rem; font-weight:700;">{{ number_format($totalRecords, 0, ',', '.') }} item</div>
-                <div class="text-muted" style="margin-top:6px;">Data ini langsung diambil dari tabel RUP, siap dikirim ke n8n.</div>
-        <div class="bar-list">
-            @foreach ($chartSeries as $item)
-                <div class="bar-item">
-                    <div class="bar" data-height="{{ $item['bar_height'] }}"></div>
-                    <div class="bar-label">{{ $item['label'] }}</div>
-                </div>
-            @endforeach
+        <div class="preview-box" style="margin-top:16px;">
+            <div style="font-size:1.2rem; font-weight:700;">{{ number_format($totalRecords, 0, ',', '.') }} item</div>
+            <div class="text-muted" style="margin-top:6px; margin-bottom:12px;">Data ini langsung diambil dari tabel RUP, siap dikirim ke n8n.</div>
+            <div style="position:relative; height:220px;">
+                <canvas id="chartSeriesCanvas"></canvas>
+            </div>
         </div>
-    </section>
+    </section> -->
 
     <section class="chart-box">
         <div class="card">
             <h3 style="margin-top:0;">Trend bulanan</h3>
-            <div class="bar-list" style="height:160px;">
-                @foreach ($monthlySeries as $item)
-                    <div class="bar-item">
-                        <div class="bar secondary" data-height="{{ $item['bar_height'] }}"></div>
-                        <div class="bar-label">{{ $item['month'] }}</div>
-                    </div>
-                @endforeach
+            <div style="position:relative; height:220px;">
+                <canvas id="monthlyTrendCanvas"></canvas>
             </div>
         </div>
         <div class="card">
             <h3 style="margin-top:0;">Status breakdown</h3>
-            @foreach ($statusBreakdown as $item)
-                <div class="status-row">
-                    <span>{{ $item['label'] }}</span>
-                    <strong>{{ $item['value'] }}</strong>
-                </div>
-            @endforeach
+            <div style="position:relative; height:220px;">
+                <canvas id="statusBreakdownCanvas"></canvas>
+            </div>
         </div>
     </section>
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
-    document.querySelectorAll('.bar[data-height]').forEach((node) => {
-        const height = node.getAttribute('data-height');
-        if (height) {
-            node.style.height = height + 'px';
-        }
-    });
+    document.addEventListener('DOMContentLoaded', function () {
+        const chartSeriesData    = @json($chartSeries);
+        const monthlySeriesData  = @json($monthlySeries);
+        const statusBreakdownData = @json($statusBreakdown);
 
-    fetch('/api/dashboard')
-        .then((response) => response.json())
-        .then((payload) => {
-            const cards = document.querySelectorAll('#stats-grid .card .value');
-            const values = payload?.data?.stats ?? [];
-            cards.forEach((node, index) => {
-                if (values[index]) {
-                    node.textContent = values[index].value;
-                }
-            });
+        const palette = {
+            primary: '#6366f1',
+            primaryFaint: 'rgba(99, 102, 241, 0.15)',
+            secondary: '#22d3ee',
+            secondaryFaint: 'rgba(34, 211, 238, 0.15)',
+            slices: ['#6366f1', '#22d3ee', '#f59e0b', '#ef4444', '#10b981', '#a855f7'],
+            grid: 'rgba(148, 163, 184, 0.15)',
+            text: '#94a3b8',
+        };
+
+        Chart.defaults.color = palette.text;
+        Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+
+        // --- OpenClaw Preview: bar chart ---
+        new Chart(document.getElementById('chartSeriesCanvas'), {
+            type: 'bar',
+            data: {
+                labels: chartSeriesData.map(item => item.label),
+                datasets: [{
+                    label: 'Jumlah',
+                    data: chartSeriesData.map(item => item.value ?? item.bar_height),
+                    backgroundColor: palette.primaryFaint,
+                    borderColor: palette.primary,
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    maxBarThickness: 36,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { color: palette.grid } },
+                },
+            },
         });
+
+        // --- Trend bulanan: line chart ---
+        new Chart(document.getElementById('monthlyTrendCanvas'), {
+            type: 'line',
+            data: {
+                labels: monthlySeriesData.map(item => item.month),
+                datasets: [{
+                    label: 'Trend',
+                    data: monthlySeriesData.map(item => item.value ?? item.bar_height),
+                    fill: true,
+                    tension: 0.4,
+                    backgroundColor: palette.secondaryFaint,
+                    borderColor: palette.secondary,
+                    borderWidth: 3,
+                    pointBackgroundColor: palette.secondary,
+                    pointRadius: 4,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { color: palette.grid } },
+                },
+            },
+        });
+
+        // --- Status breakdown: doughnut chart ---
+        new Chart(document.getElementById('statusBreakdownCanvas'), {
+            type: 'doughnut',
+            data: {
+                labels: statusBreakdownData.map(item => item.label),
+                datasets: [{
+                    data: statusBreakdownData.map(item => item.value),
+                    backgroundColor: palette.slices,
+                    borderWidth: 0,
+                    hoverOffset: 8,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, padding: 16 },
+                    },
+                },
+            },
+        });
+
+        fetch('/api/dashboard')
+            .then((response) => response.json())
+            .then((payload) => {
+                const cards = document.querySelectorAll('#stats-grid .card .value');
+                const values = payload?.data?.stats ?? [];
+                cards.forEach((node, index) => {
+                    if (values[index]) {
+                        node.textContent = values[index].value;
+                    }
+                });
+            });
+    });
 </script>
 @endpush
