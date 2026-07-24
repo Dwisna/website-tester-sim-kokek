@@ -6,17 +6,10 @@
     <header class="navbar navbar-expand-md navbar-light d-print-none">
         <ul class="navbar-nav">
             <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="bi bi-list"></i></a>
-            </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a href="{{ route('dashboard') }}" class="nav-link">Dashboard</a>
-            </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a href="{{ route('history') }}" class="nav-link">History</a>
+                <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="ti ti-menu-2"></i></a>
             </li>
         </ul>
 
-        </ul>
         <div class="d-flex order-md-last ms-3">
             @include('components.theme-toggle')
         </div>
@@ -43,5 +36,4 @@
         </div>
     </div>
 </div>
-@endsection
 @endsection
