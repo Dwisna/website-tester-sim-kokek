@@ -5,18 +5,18 @@
                 <strong>Customer Service</strong>
                 <span class="text-muted d-block small">Live • n8n-ready</span>
             </div>
-            <button type="button" class="floating-chat-close btn btn-sm btn-outline-secondary" id="floating-chat-close" aria-label="Tutup chat"><i class="bi bi-x-lg"></i></button>
+            <button type="button" class="floating-chat-close btn btn-sm btn-outline-secondary" id="floating-chat-close" aria-label="Tutup chat"><i class="ti ti-x"></i></button>
         </div>
         <div class="floating-chat-thread" id="floating-chat-thread">
             <div class="bubble assistant">Halo! Saya asisten CS. Silakan tanyakan kebutuhan Anda tentang data RUP.</div>
         </div>
         <div class="floating-chat-input">
             <input id="floating-chat-input" type="text" placeholder="Ketik pesan..." autocomplete="off" class="form-control" />
-            <button type="button" id="floating-chat-send" class="btn btn-primary ms-2">Kirim</button>
+            <button type="button" id="floating-chat-send" class="btn btn-primary ms-2"><i class="ti ti-send"></i></button>
         </div>
     </div>
-    <button type="button" class="floating-chat-toggle" id="floating-chat-toggle" aria-label="Buka chat">
-        <i class="bi bi-chat-dots-fill fs-4"></i>
+    <button type="button" class="floating-chat-toggle btn btn-primary" id="floating-chat-toggle" aria-label="Buka chat">
+        <i class="ti ti-message"></i>
     </button>
 </div>
 
