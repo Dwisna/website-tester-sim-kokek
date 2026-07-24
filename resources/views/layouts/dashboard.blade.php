@@ -6,7 +6,7 @@
     <header class="navbar navbar-expand-md navbar-light d-print-none">
         <ul class="navbar-nav">
             <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="ti ti-menu-2"></i></a>
+                <a class="nav-link" data-widget="pushmenu" href="#" role="button">@include('components.icon', ['name' => 'menu', 'size' => 20])</a>
             </li>
         </ul>
 
@@ -23,8 +23,8 @@
                         <div class="card-body">
                             <h3 class="card-title">Menu</h3>
                             <div class="list-group list-group-flush">
-                                <a href="{{ route('dashboard') }}" class="list-group-item list-group-item-action @if(request()->routeIs('dashboard')) active @endif"><i class="ti ti-speedometer me-2"></i> Dashboard</a>
-                                <a href="{{ route('history') }}" class="list-group-item list-group-item-action @if(request()->routeIs('history')) active @endif"><i class="ti ti-clock me-2"></i> History</a>
+                                <a href="{{ route('dashboard') }}" class="list-group-item list-group-item-action @if(request()->routeIs('dashboard')) active @endif">@include('components.icon', ['name' => 'speedometer', 'size' => 18]) Dashboard</a>
+                                <a href="{{ route('history') }}" class="list-group-item list-group-item-action @if(request()->routeIs('history')) active @endif">@include('components.icon', ['name' => 'clock', 'size' => 18]) History</a>
                             </div>
                         </div>
                     </div>
