@@ -8,13 +8,13 @@
             <div class="title">Dashboard</div>
             <div class="subtitle">Integrasi data RUP dari database {{ config('database.connections.'.config('database.default').'.database') ?? 'magang_db' }}</div>
         </div>
-        <div class="topbar-actions">
+            <div class="topbar-actions d-flex align-items-center gap-2">
             @include('components.theme-toggle')
-            <a href="{{ route('notifications') }}" class="bell-btn" aria-label="Notifications">
-                🔔
-                <span class="dot"></span>
+            <a href="{{ route('notifications') }}" class="btn btn-light position-relative" aria-label="Notifications">
+                <i class="bi bi-bell-fill"></i>
+                <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
             </a>
-            <div class="pill">Realtime monitoring • {{ now()->format('d M Y') }}</div>
+            <div class="badge bg-secondary text-white">Realtime • {{ now()->format('d M Y') }}</div>
         </div>
     </div>
 
@@ -42,23 +42,24 @@
                 <p class="text-muted" style="margin:0;">Tabel ini menampilkan isi database RUP langsung dari MySQL.</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                <a href="{{ route('rup.download', request()->query()) }}" class="btn-primary" style="padding:10px 18px; display:inline-flex; align-items:center; gap:6px;">
-                    ⬇ Download Excel
+                <a href="{{ route('rup.download', request()->query()) }}" class="btn btn-outline-primary d-inline-flex align-items-center" style="gap:8px; padding:8px 14px;">
+                    <i class="bi bi-download"></i> Download Excel
                 </a>
                 <form method="GET" action="/" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                    <input class="form-input" type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" style="min-width:240px;" />
+                    <input class="form-control" type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" style="min-width:240px;" />
                     <select class="form-select" name="tahun_anggaran" style="min-width:160px;">
                         <option value="">Semua Tahun</option>
                         @foreach ($years as $year)
                             <option value="{{ $year }}" {{ request('tahun_anggaran') == $year ? 'selected' : '' }}>{{ $year }}</option>
                         @endforeach
                     </select>
-                    <button type="submit" class="btn-primary" style="padding:10px 18px;">Filter</button>
+                    <button type="submit" class="btn btn-primary" style="padding:8px 14px;">Filter</button>
                 </form>
             </div>
         </div>
 
-        <table>
+        <div class="table-responsive">
+        <table class="table table-striped align-middle">
             <thead>
                 <tr>
                     <th>#</th>
@@ -83,7 +84,7 @@
                         <td>{{ $record->nama_instansi }}</td>
                         <td>{{ $record->tahun_anggaran }}</td>
                         <td>{{ optional($record->created_at)->format('d M Y') }}</td>
-                        <td><a href="{{ route('records.show', $record) }}" style="text-decoration:none;">Lihat</a></td>
+                        <td><a href="{{ route('records.show', $record) }}" class="text-decoration-none">Lihat</a></td>
                     </tr>
                 @empty
                     <tr><td colspan="9">Belum ada data yang sesuai filter.</td></tr>
@@ -91,14 +92,15 @@
             </tbody>
         </table>
 
-        <div class="pagination">
+        <div class="d-flex gap-2 align-items-center mt-3">
             @if ($records->onFirstPage() === false)
-                <a href="{{ $records->previousPageUrl() }}" class="btn-primary" style="padding:8px 14px;">Sebelumnya</a>
+                <a href="{{ $records->previousPageUrl() }}" class="btn btn-outline-secondary">Sebelumnya</a>
             @endif
-            <span class="text-muted" style="align-self:center;">Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}</span>
+            <span class="text-muted">Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}</span>
             @if ($records->hasMorePages())
-                <a href="{{ $records->nextPageUrl() }}" class="btn-primary" style="padding:8px 14px;">Selanjutnya</a>
+                <a href="{{ $records->nextPageUrl() }}" class="btn btn-outline-secondary">Selanjutnya</a>
             @endif
+        </div>
         </div>
     </section>
 
