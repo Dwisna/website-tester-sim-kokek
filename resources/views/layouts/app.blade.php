@@ -9,7 +9,15 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-" crossorigin="anonymous">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @php
+        $viteManifest = public_path('build/manifest.json');
+    @endphp
+    @if (file_exists($viteManifest))
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @else
+        <!-- Vite manifest not found; loading minimal fallback styles for local/testing -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    @endif
     @stack('head')
 </head>
 <body>
