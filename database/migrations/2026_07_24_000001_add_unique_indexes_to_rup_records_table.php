@@ -20,6 +20,27 @@ return new class extends Migration
             }
         }
 
+        // If dupe_hash column exists, remove existing duplicate rows (keep earliest id)
+        try {
+            $hasDupeHash = (bool) DB::selectOne("SELECT COUNT(*) AS c FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'import_rencana_umum_pengadaan' AND COLUMN_NAME = 'dupe_hash'")->c;
+            if ($hasDupeHash) {
+                // Delete rows where another row with same dupe_hash has a smaller id (keep earliest)
+                DB::statement(<<<'SQL'
+                    DELETE r1 FROM import_rencana_umum_pengadaan r1
+                    JOIN (
+                        SELECT dupe_hash, MIN(id) AS keep_id
+                        FROM import_rencana_umum_pengadaan
+                        WHERE dupe_hash IS NOT NULL
+                        GROUP BY dupe_hash
+                        HAVING COUNT(*) > 1
+                    ) dup ON r1.dupe_hash = dup.dupe_hash AND r1.id <> dup.keep_id
+                SQL
+                );
+            }
+        } catch (\Throwable $e) {
+            // ignore cleanup errors to avoid blocking migrations; operator can run artisan rup:clean-duplicates later
+        }
+
         // Create unique index on dupe_hash if missing
         $idx = (bool) DB::selectOne("SELECT COUNT(*) AS c FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'import_rencana_umum_pengadaan' AND INDEX_NAME = 'ruprecord_dupe_hash_unique'")->c;
         if (! $idx) {
