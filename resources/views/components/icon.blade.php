@@ -2,7 +2,7 @@
     $size = $size ?? 18;
     $color = $color ?? 'currentColor';
     $name = $name ?? '';
-?>
+@endphp
 @switch($name)
     @case('menu')
         <svg xmlns="http://www.w3.org/2000/svg" width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24" fill="none" stroke="{{ $color }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
