@@ -6,13 +6,34 @@
         /* Improve sidebar visibility in dark mode and adjust notification sizing */
         .sidebar-card { transition: background-color .15s ease, border-color .15s ease; }
         body.dark .sidebar-card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015)) !important;
+            border: 1px solid rgba(255,255,255,0.04) !important;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+            color: rgba(255,255,255,0.92) !important;
+        }
+        /* Make list items readable in dark mode */
+        body.dark .sidebar-card .list-group-item {
+            background: transparent !important;
+            color: rgba(255,255,255,0.82) !important;
+            border-color: rgba(255,255,255,0.02) !important;
+        }
+        body.dark .sidebar-card .list-group-item .svg, body.dark .sidebar-card .list-group-item svg { color: inherit; }
+        body.dark .sidebar-card .list-group-item.active {
+            background: rgba(255,255,255,0.02) !important;
+            border-left: 3px solid rgba(245,158,11,0.95) !important;
+        }
+
+        /* Notification button: remove strong white square in dark mode and size icon */
+        .topbar-actions .btn.notification-btn { width:46px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px; }
+        .topbar-actions .btn.notification-btn svg { width:20px; height:20px; }
+        body.dark .topbar-actions .btn.notification-btn {
             background: rgba(255,255,255,0.03) !important;
             border: 1px solid rgba(255,255,255,0.06) !important;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-            color: #e6eef8 !important;
+            color: rgba(255,255,255,0.95) !important;
         }
-        .topbar-actions .btn.notification-btn { width:46px; height:36px; display:inline-flex; align-items:center; justify-content:center; }
-        .topbar-actions .btn.notification-btn svg { width:20px; height:20px; }
+
+        /* Small adjustments for avatar-style icons inside list items */
+        .avatar svg { vertical-align: middle; }
     </style>
     <!-- Navbar -->
     <header class="navbar navbar-expand-md navbar-light d-print-none">
