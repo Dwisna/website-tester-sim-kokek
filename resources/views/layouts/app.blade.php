@@ -6,9 +6,11 @@
     <title>@yield('title', 'RUP Intelligence')</title>
     @include('components.theme-init')
     <!-- Bootstrap CSS (CDN) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- AdminLTE (CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.4.19/dist/css/adminlte.min.css">
     @php
         $viteManifest = public_path('build/manifest.json');
     @endphp
@@ -21,12 +23,14 @@
     @stack('head')
 </head>
 <body>
-    <div class="container my-4">
+    <div class="wrapper">
         @yield('content')
     </div>
     @include('components.floating-chat')
     @stack('scripts')
     <!-- Bootstrap JS (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-" crossorigin="anonymous"></script>
+    <!-- AdminLTE JS -->
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.4.19/dist/js/adminlte.min.js"></script>
 </body>
 </html>
