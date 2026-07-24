@@ -10,7 +10,7 @@
         </div>
             <div class="topbar-actions d-flex align-items-center gap-2">
             @include('components.theme-toggle')
-            <a href="{{ route('notifications') }}" class="btn btn-light position-relative d-inline-flex align-items-center justify-content-center notification-btn" aria-label="Notifications">
+            <a href="{{ route('notifications') }}" class="btn position-relative d-inline-flex align-items-center justify-content-center notification-btn" aria-label="Notifications">
                 @include('components.icon', ['name' => 'bell', 'size' => 22])
                 <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
             </a>

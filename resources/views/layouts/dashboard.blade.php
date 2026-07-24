@@ -23,26 +23,18 @@
             border-left: 3px solid rgba(245,158,11,0.95) !important;
         }
 
-        /* Notification button: remove strong white square in dark mode and size icon */
-        .topbar-actions .btn.notification-btn { width:46px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px; }
+        /* Notification button: remove strong white square and control bg via CSS */
+        .topbar-actions .btn.notification-btn { width:46px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px; background: transparent; border: none; }
         .topbar-actions .btn.notification-btn svg { width:20px; height:20px; }
-        body.dark .topbar-actions .btn.notification-btn {
-            background: rgba(255,255,255,0.03) !important;
-            border: 1px solid rgba(255,255,255,0.06) !important;
-            color: rgba(255,255,255,0.95) !important;
-        }
+        .topbar-actions .btn.notification-btn:hover { background: rgba(0,0,0,0.04); }
+        body.dark .topbar-actions .btn.notification-btn { background: rgba(255,255,255,0.03) !important; border: 1px solid rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.95) !important; }
+        body.dark .topbar-actions .btn.notification-btn:hover { background: rgba(255,255,255,0.04) !important; }
 
         /* Small adjustments for avatar-style icons inside list items */
         .avatar svg { vertical-align: middle; }
     </style>
-    <!-- Navbar -->
+    <!-- Navbar (hamburger removed per request) -->
     <header class="navbar navbar-expand-md navbar-light d-print-none">
-        <ul class="navbar-nav">
-            <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" href="#" role="button">@include('components.icon', ['name' => 'menu', 'size' => 20])</a>
-            </li>
-        </ul>
-
         <div class="d-flex order-md-last ms-3">
             @include('components.theme-toggle')
         </div>
