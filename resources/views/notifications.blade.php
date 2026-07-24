@@ -11,7 +11,7 @@
         </div>
         <div class="d-flex align-items-center gap-2">
             @include('components.theme-toggle')
-            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i> Dashboard</a>
+            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">@include('components.icon', ['name' => 'speedometer', 'size' => 14]) Dashboard</a>
         </div>
     </div>
 
@@ -21,7 +21,7 @@
                 <div class="list-group-item">
                     <div class="row align-items-center">
                         <div class="col-auto">
-                            <span class="avatar bg-primary text-white rounded-circle p-2"><i class="ti ti-bell"></i></span>
+                            <span class="avatar bg-primary text-white rounded-circle p-2">@include('components.icon', ['name' => 'bell', 'size' => 16])</span>
                         </div>
                         <div class="col">
                             <div class="fw-semibold">{{ $notification->title }}</div>

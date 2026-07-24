@@ -15,8 +15,8 @@
             <button type="button" id="floating-chat-send" class="btn btn-primary ms-2">@include('components.icon', ['name' => 'send', 'size' => 16])</button>
         </div>
     </div>
-    <button type="button" class="floating-chat-toggle btn btn-primary" id="floating-chat-toggle" aria-label="Buka chat">
-        @include('components.icon', ['name' => 'message', 'size' => 18])
+    <button type="button" class="floating-chat-toggle btn btn-primary d-flex align-items-center justify-content-center" id="floating-chat-toggle" aria-label="Buka chat" style="width:52px;height:52px;border-radius:50%;">
+        <span style="line-height:0; display:inline-flex; align-items:center; justify-content:center;">@include('components.icon', ['name' => 'message', 'size' => 20])</span>
     </button>
 </div>
 

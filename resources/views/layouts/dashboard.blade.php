@@ -18,7 +18,7 @@
     <div class="page-wrapper">
         <div class="container-xl">
             <div class="row g-4">
-                <div class="col-12 col-xl-3">
+                <div class="col-12 col-xl-3 ps-0">
                     <div class="card">
                         <div class="card-body">
                             <h3 class="card-title">Menu</h3>
