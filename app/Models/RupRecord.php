@@ -4,6 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Model `RupRecord`
+ *
+ * Model ini merepresentasikan tabel `import_rencana_umum_pengadaan` yang
+ * menyimpan data RUP (Rencana Umum Pengadaan). Gunakan properti
+ * `$fillable` untuk menentukan kolom yang boleh diisi massal.
+ */
 class RupRecord extends Model
 {
     protected $table = 'import_rencana_umum_pengadaan';

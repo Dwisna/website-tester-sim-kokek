@@ -5,11 +5,26 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Perintah artisan `rup:clean-duplicates`.
+ *
+ * Perintah ini memindai tabel impor dan mengidentifikasi duplikat berdasarkan
+ * `id_rup` atau kombinasi `nama_pekerjaan + nama_instansi + tahun_anggaran`.
+ * Opsi `--dry-run` hanya menampilkan hasil tanpa menghapus.
+ */
 class CleanDuplicateRup extends Command
 {
     protected $signature = 'rup:clean-duplicates {--dry-run}';
     protected $description = 'Detect and optionally remove duplicate RUP records based on id_rup or name+instansi+tahun';
 
+    /**
+     * Menjalankan pemeriksaan dan penghapusan duplikat.
+     *
+     * Jika opsi `--dry-run` disertakan, perintah hanya menampilkan grup duplikat
+     * tanpa menghapus baris apa pun.
+     *
+     * @return int
+     */
     public function handle()
     {
         $dry = $this->option('dry-run');

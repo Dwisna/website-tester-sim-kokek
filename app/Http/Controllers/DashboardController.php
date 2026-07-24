@@ -15,6 +15,11 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
 {
+    /**
+     * Halaman utama dashboard.
+     *
+     * Menampilkan statistik ringkas, daftar RUP, dan filter tahun.
+     */
     public function index(Request $request)
     {
         $query = RupRecord::query();
@@ -45,6 +50,10 @@ class DashboardController extends Controller
         return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords'));
     }
 
+    /**
+     * API untuk data dashboard (dipanggil oleh frontend untuk update realtime).
+     * Mengembalikan statistik, entri terbaru, dan seri chart.
+     */
     public function dashboardApi(): JsonResponse
     {
         return response()->json([
@@ -67,11 +76,17 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * Menampilkan halaman detail untuk satu record RUP.
+     */
     public function showRecord(RupRecord $record)
     {
         return view('record-detail', compact('record'));
     }
 
+    /**
+     * Halaman mock OpenClaw untuk demo integrasi scraping dan preview data.
+     */
     public function openclawPage()
     {
         $lastRecord = RupRecord::latest('created_at')->first();
@@ -90,6 +105,10 @@ class DashboardController extends Controller
         return view('openclaw', compact('mockData', 'chatMessages'));
     }
 
+    /**
+     * Endpoint API sederhana untuk chat demo.
+     * Menerima pesan dan mengembalikan balasan teks (mock).
+     */
     public function chatApi(Request $request): JsonResponse
     {
         $message = $request->input('message', 'Halo');
@@ -103,6 +122,9 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * Halaman history yang menampilkan log webhook n8n terbaru.
+     */
     public function historyPage()
     {
         $history = N8nWebhookLog::latest('created_at')->take(20)->get();
@@ -110,6 +132,9 @@ class DashboardController extends Controller
         return view('history', compact('history'));
     }
 
+    /**
+     * API yang mengembalikan ringkasan history untuk konsumsi frontend.
+     */
     public function historyApi(): JsonResponse
     {
         $history = N8nWebhookLog::latest('created_at')->take(10)->get()->map(function ($item) {
@@ -126,6 +151,9 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * API placeholder untuk mendownload/menyiapkan file export dashboard.
+     */
     public function downloadApi(): JsonResponse
     {
         return response()->json([
@@ -138,6 +166,9 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * API yang mengembalikan daftar notifikasi sistem terbaru.
+     */
     public function notificationsApi(): JsonResponse
     {
         $notifications = SystemNotification::latest('created_at')->take(20)->get()->map(function ($item) {
@@ -159,6 +190,9 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * Halaman notifikasi untuk melihat daftar notifikasi sistem.
+     */
     public function notificationsPage()
     {
         $notifications = SystemNotification::latest('created_at')->take(20)->get();
@@ -166,6 +200,10 @@ class DashboardController extends Controller
         return view('notifications', compact('notifications'));
     }
 
+    /**
+     * Endpoint untuk menerima webhook dari n8n.
+     * Mencatat payload ke log dan membuat SystemNotification.
+     */
     public function n8nWebhook(Request $request): JsonResponse
     {
         $payload = $request->all();
@@ -216,6 +254,15 @@ class DashboardController extends Controller
      * }
      *
      * Atau kirim file (multipart/form-data) di field "file" (.json / .csv)
+     */
+    /**
+     * Memproses import data RUP dari n8n atau upload file.
+     *
+     * Fungsionalitas:
+     * - Normalisasi field
+     * - Deteksi duplikat (id_rup atau nama+instansi+tahun)
+     * - Update / create record sesuai kondisi
+     * - Dibungkus dalam transaksi DB untuk atomicitas
      */
     public function n8nImport(Request $request): JsonResponse
     {

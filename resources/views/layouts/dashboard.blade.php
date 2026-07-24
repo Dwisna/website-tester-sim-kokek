@@ -36,7 +36,7 @@
     <!-- Navbar (hamburger removed per request) -->
     <header class="navbar navbar-expand-md navbar-light d-print-none">
         <div class="d-flex order-md-last ms-3">
-            @include('components.theme-toggle')
+              @include('components.ui.theme-toggle')
         </div>
     </header>
 
@@ -48,8 +48,8 @@
                         <div class="card-body">
                             <h3 class="card-title">Menu</h3>
                             <div class="list-group list-group-flush">
-                                <a href="{{ route('dashboard') }}" class="list-group-item list-group-item-action @if(request()->routeIs('dashboard')) active @endif">@include('components.icon', ['name' => 'speedometer', 'size' => 18]) Dashboard</a>
-                                <a href="{{ route('history') }}" class="list-group-item list-group-item-action @if(request()->routeIs('history')) active @endif">@include('components.icon', ['name' => 'clock', 'size' => 18]) History</a>
+                                <a href="{{ route('dashboard') }}" class="list-group-item list-group-item-action @if(request()->routeIs('dashboard')) active @endif">@include('components.ui.icon', ['name' => 'speedometer', 'size' => 18]) Dashboard</a>
+                                    <a href="{{ route('history') }}" class="list-group-item list-group-item-action @if(request()->routeIs('history')) active @endif">@include('components.ui.icon', ['name' => 'clock', 'size' => 18]) History</a>
                             </div>
                         </div>
                     </div>
