@@ -7,8 +7,8 @@
     @include('components.theme-init')
     <!-- Tabler CSS (CDN) -->
     <link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta11/dist/css/tabler.min.css" rel="stylesheet">
-    <!-- Tabler Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/tabler-icons@1.39.1/iconfont/tabler-icons.min.css" rel="stylesheet">
+    <!-- Tabler Icons (webfont) - fixed CDN path -->
+    <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@1.39.1/dist/tabler-icons.min.css" rel="stylesheet">
     @php
         $viteManifest = public_path('build/manifest.json');
     @endphp
