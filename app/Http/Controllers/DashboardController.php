@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
@@ -252,7 +253,9 @@ class DashboardController extends Controller
             $skipped = 0;
             $errors = [];
 
-            foreach ($recordPayload as $i => $recordData) {
+            DB::beginTransaction();
+            try {
+                foreach ($recordPayload as $i => $recordData) {
                 if (!is_array($recordData)) {
                     $skipped++;
                     $errors[] = "Index {$i}: data bukan object/array, dilewati.";
@@ -261,21 +264,100 @@ class DashboardController extends Controller
 
                 $normalized = $this->normalizeRupData($recordData);
 
+                // id_rup wajib untuk proses update/create; jika kosong, coba deteksi
+                // duplikat berdasarkan nama_pekerjaan + nama_instansi + tahun_anggaran
                 if (empty($normalized['id_rup'])) {
-                    $skipped++;
-                    $errors[] = "Index {$i}: field 'id_rup' kosong, wajib diisi, dilewati.";
+                    // Jika tidak ada id_rup, cek apakah ada record persis sama
+                    $query = RupRecord::query();
+
+                    if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
+                        $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
+                        $namaI = trim(mb_strtolower($normalized['nama_instansi']));
+
+                        $query->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
+                            ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
+
+                        if (!empty($normalized['tahun_anggaran'])) {
+                            $query->where('tahun_anggaran', $normalized['tahun_anggaran']);
+                        }
+                    } else {
+                        // Tidak ada kunci yang cukup untuk validasi; lewati
+                        $skipped++;
+                        $errors[] = "Index {$i}: field 'id_rup' kosong dan tidak cukup data untuk deteksi duplikat, dilewati.";
+                        continue;
+                    }
+
+                    if ($query->exists()) {
+                        $skipped++;
+                        $errors[] = "Index {$i}: ditemukan duplikat berdasarkan nama_instansi/nama_pekerjaan/tahun, dilewati.";
+                        continue;
+                    }
+
+                    // Tidak ditemukan duplikat, buat record baru
+                    $record = RupRecord::create($normalized);
+
+                    if ($record) {
+                        $created++;
+                    } else {
+                        $skipped++;
+                        $errors[] = "Index {$i}: gagal membuat record baru.";
+                    }
+
                     continue;
                 }
 
-                $record = RupRecord::updateOrCreate([
-                    'id_rup' => $normalized['id_rup'],
-                ], $normalized);
+                // Jika id_rup tersedia, gunakan updateOrCreate (tetap menghindari duplikat id)
+                $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
 
-                if ($record->wasRecentlyCreated) {
-                    $created++;
-                } else {
-                    $updated++;
+                if ($existingById) {
+                    // Update hanya jika ada perubahan sebenarnya untuk mengurangi noise
+                    $existingById->fill($normalized);
+                    if ($existingById->isDirty()) {
+                        $existingById->save();
+                        $updated++;
+                    }
+                    // jika tidak dirty, anggap tidak ada perubahan
+                    continue;
                 }
+
+                // Kalau belum ada record dengan id_rup, cek duplikat berdasar nama+instansi+tahun
+                $dupQuery = RupRecord::query();
+                if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
+                    $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
+                    $namaI = trim(mb_strtolower($normalized['nama_instansi']));
+
+                    $dupQuery->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
+                        ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
+
+                    if (!empty($normalized['tahun_anggaran'])) {
+                        $dupQuery->where('tahun_anggaran', $normalized['tahun_anggaran']);
+                    }
+                }
+
+                if ($dupQuery->exists()) {
+                    $skipped++;
+                    $errors[] = "Index {$i}: menemukan record serupa (nama_instansi/nama_pekerjaan/tahun), dilewati untuk mencegah duplikasi.";
+                    continue;
+                }
+
+                // Tidak ada duplikat; buat record baru
+                $record = RupRecord::create($normalized);
+
+                if ($record) {
+                        $created++;
+                    } else {
+                        $skipped++;
+                        $errors[] = "Index {$i}: gagal membuat record baru.";
+                    }
+            }
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('n8nImport transaction failed: '.$e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat memproses import: '.$e->getMessage(),
+                ], 500);
             }
 
             $event = $payload['event'] ?? 'n8n_import';
@@ -376,6 +458,11 @@ class DashboardController extends Controller
             if (in_array($field, $booleanFields, true)) {
                 $normalized[$field] = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
                 continue;
+            }
+
+            // Normalisasi string: trim whitespace
+            if (is_string($value)) {
+                $value = trim($value);
             }
 
             $normalized[$field] = $value;
