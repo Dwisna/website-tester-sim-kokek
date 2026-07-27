@@ -3,30 +3,33 @@
 @section('title', 'OpenClaw Preview')
 
 @section('content')
-<div class="wrap">
+<div class="wrap page-shell">
     <div class="page-header">
-        <div></div>
+        <div>
+            <div class="eyebrow">OpenClaw preview</div>
+            <h1 class="page-title">OpenClaw</h1>
+            <p class="page-subtitle">Preview antarmuka mock untuk integrasi scraping data dari OpenClaw.</p>
+        </div>
         <div class="page-header-actions">
             @include('components.theme-toggle')
-            <a href="{{ route('dashboard') }}" class="btn-primary" style="padding:8px 14px;">← Dashboard</a>
+            <a href="{{ route('dashboard') }}" class="btn-primary">← Dashboard</a>
         </div>
     </div>
 
-    <div class="card">
-        <h1 style="margin-top:0;">OpenClaw</h1>
+    <div class="card detail-card">
         <p class="text-muted">Preview antarmuka mock untuk integrasi scraping data dari OpenClaw. Saat setup selesai, modul ini bisa dipakai untuk mengirim permintaan dan melihat status sinkronisasi.</p>
         <span class="pill-success">{{ $mockData['status'] }}</span>
     </div>
 
     <div class="grid">
         <div class="card">
-            <h3 style="margin-top:0;">Ringkasan</h3>
+            <h3 class="section-title">Ringkasan</h3>
             <div class="metric">{{ $mockData['items'] }}</div>
             <p class="text-muted">item data siap diproses dari hasil scraping mock.</p>
             <p>{{ $mockData['summary'] }}</p>
         </div>
         <div class="card">
-            <h3 style="margin-top:0;">Sinkronisasi terakhir</h3>
+            <h3 class="section-title">Sinkronisasi terakhir</h3>
             <div class="metric">{{ $mockData['last_sync'] }}</div>
             <ul class="list">
                 <li>Polling berjalan normal</li>
@@ -50,7 +53,7 @@
     </div>
 
     <div class="card">
-        <h3 style="margin-top:0;">Mock activity</h3>
+        <h3 class="section-title">Mock activity</h3>
         <ul class="list">
             <li>Ambil data dari sumber simulasi</li>
             <li>Normalisasi field ke struktur database</li>

@@ -3,35 +3,39 @@
 @section('title', 'Notifications')
 
 @section('content')
-<div class="container-xl py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="wrap page-shell">
+    <div class="page-header">
         <div>
-            <h2 class="mb-0">Notifications</h2>
-            <div class="text-muted">Daftar pemberitahuan sistem.</div>
+            <div class="eyebrow">System alerts</div>
+            <h1 class="page-title">Notifications</h1>
+            <p class="page-subtitle">Daftar pemberitahuan sistem.</p>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="page-header-actions">
             @include('components.theme-toggle')
-            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">@include('components.icon', ['name' => 'speedometer', 'size' => 14]) Dashboard</a>
+            <a href="{{ route('dashboard') }}" class="btn-surface">@include('components.icon', ['name' => 'speedometer', 'size' => 14]) Dashboard</a>
         </div>
     </div>
 
-    <div class="card">
-        <div class="list-group list-group-flush">
+    <div class="card detail-card">
+        <div class="notif-list">
             @forelse ($notifications as $notification)
-                <div class="list-group-item">
-                    <div class="row align-items-center">
-                        <div class="col-auto">
-                            <span class="avatar bg-primary text-white rounded-circle p-2">@include('components.icon', ['name' => 'bell', 'size' => 16])</span>
-                        </div>
-                        <div class="col">
-                            <div class="fw-semibold">{{ $notification->title }}</div>
-                            <div class="text-muted">{{ $notification->message }}</div>
-                        </div>
-                        <div class="col-auto text-muted small">{{ ucfirst($notification->priority) }} • {{ $notification->created_at->diffForHumans() }}</div>
+                <div class="notif-item">
+                    <div class="notif-avatar">@include('components.icon', ['name' => 'bell', 'size' => 16])</div>
+                    <div>
+                        <div class="notif-title">{{ $notification->title }}</div>
+                        <div class="notif-message">{{ $notification->message }}</div>
                     </div>
+                    <div class="notif-meta">{{ ucfirst($notification->priority) }} • {{ $notification->created_at->diffForHumans() }}</div>
                 </div>
             @empty
-                <div class="list-group-item">Belum ada notifikasi.</div>
+                <div class="notif-item">
+                    <div class="notif-avatar">@include('components.icon', ['name' => 'bell', 'size' => 16])</div>
+                    <div>
+                        <div class="notif-title">Belum ada notifikasi.</div>
+                        <div class="notif-message">Semua pemberitahuan sistem akan muncul di sini.</div>
+                    </div>
+                    <div class="notif-meta">System</div>
+                </div>
             @endforelse
         </div>
     </div>

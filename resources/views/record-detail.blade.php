@@ -3,11 +3,12 @@
 @section('title', 'Detail record')
 
 @section('content')
-<div class="wrap">
+<div class="wrap page-shell">
     <div class="page-header">
         <div>
-            <h1 style="margin:0 0 6px;">Detail record</h1>
-            <p class="text-muted" style="margin:0;">Ringkasan lengkap data hasil scraping dan integrasi dashboard.</p>
+            <div class="eyebrow">RUP record</div>
+            <h1 class="page-title">Detail record</h1>
+            <p class="page-subtitle">Ringkasan lengkap data hasil scraping dan integrasi dashboard.</p>
         </div>
         <div class="page-header-actions">
             @include('components.theme-toggle')
@@ -15,8 +16,8 @@
         </div>
     </div>
 
-    <div class="card">
-        <h2 style="margin-top:0;">{{ $record->nama_pekerjaan ?? 'Tanpa judul' }}</h2>
+    <div class="card detail-card">
+        <h2>{{ $record->nama_pekerjaan ?? 'Tanpa judul' }}</h2>
         <div class="detail-grid">
             <div><div class="field-label">Instansi</div><div class="field-value">{{ $record->nama_instansi ?? '-' }}</div></div>
             <div><div class="field-label">Tahun anggaran</div><div class="field-value">{{ $record->tahun_anggaran ?? '-' }}</div></div>

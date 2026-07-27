@@ -2,23 +2,29 @@
 
 @section('title', 'History')
 
+@section('topnav-search')
+    <div class="topnav-page-label">History</div>
+@endsection
+
 @section('content')
-<div class="wrap">
+<div class="wrap page-shell fade-in">
     <div class="page-header">
-        <div></div>
+        <div>
+            <div class="eyebrow">Activity log</div>
+            <h1 class="page-title">History</h1>
+            <p class="page-subtitle">Riwayat pesan dan webhook yang masuk ke sistem sebelum diproses lebih lanjut.</p>
+        </div>
         <div class="page-header-actions">
             @include('components.theme-toggle')
-            <a href="{{ route('dashboard') }}" class="btn-primary" style="padding:8px 14px;">← Dashboard</a>
+            <a href="{{ route('dashboard') }}" class="btn-primary">← Dashboard</a>
         </div>
     </div>
 
-    <div class="card">
-        <h1 style="margin-top:0;">History</h1>
-        <p class="text-muted">Riwayat pesan dan webhook yang masuk ke sistem sebelum diproses lebih lanjut.</p>
+    <div class="card detail-card">
         <span class="pill-accent">{{ $history->count() }} event tersimpan</span>
     </div>
 
-    <div class="card">
+    <div class="card detail-card">
         @forelse ($history as $entry)
             <div class="item">
                 <strong>{{ $entry->event ?? 'webhook' }}</strong>

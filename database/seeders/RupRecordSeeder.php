@@ -45,6 +45,35 @@ class RupRecordSeeder extends Seeder
             ];
         }
 
-        RupRecord::insert($sample);
+        RupRecord::upsert(
+            $sample,
+            ['id_rup'],
+            [
+                'nama_pekerjaan',
+                'pagu',
+                'nama_jenis_pengadaan',
+                'nama_jenis_produk_rup',
+                'nama_jenis_usaha',
+                'nama_metode_pengadaan',
+                'waktu_pemilihan_penyedia',
+                'nama_instansi',
+                'nama_organisasi',
+                'lokasi_pekerjaan',
+                'nama_bidang_pekerjaan',
+                'tahun_anggaran',
+                'pic',
+                'keterangan',
+                'is_sirup',
+                'is_import',
+                'is_pekerjaan_prospek',
+                'id_sis_rup',
+                'alamat_organisasi',
+                'telepon_organisasi',
+                'is_status_kirim_penawaran',
+                'id_nomor_surat',
+                'input_id',
+                'updated_at',
+            ]
+        );
     }
 }

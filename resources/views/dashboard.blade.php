@@ -2,131 +2,179 @@
 
 @section('title', 'RUP Intelligence Dashboard')
 
-@section('main')
-    <div class="topbar">
-        <div>
-            <div class="title">Dashboard</div>
-            <div class="subtitle">Integrasi data RUP dari database {{ config('database.connections.'.config('database.default').'.database') ?? 'magang_db' }}</div>
-        </div>
-            <div class="topbar-actions d-flex align-items-center gap-2">
-            @include('components.theme-toggle')
-            <a href="{{ route('notifications') }}" class="btn position-relative d-inline-flex align-items-center justify-content-center notification-btn" aria-label="Notifications">
-                @include('components.icon', ['name' => 'bell', 'size' => 22])
-                <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
-            </a>
-            <div class="badge bg-secondary text-white">Realtime • {{ now()->format('d M Y') }}</div>
-        </div>
-    </div>
+@section('topnav-title', 'Dashboard')
 
-    <section class="hero">
+@section('topnav-breadcrumb')
+    <a href="{{ route('dashboard') }}">Home</a>
+    <span>/</span>
+    <span>Dashboard</span>
+@endsection
+
+@section('topnav-description', '')
+
+@section('topnav-search')
+    <form method="GET" action="{{ route('dashboard') }}" class="topnav-search-form topnav-search-form-compact">
+        <span class="topnav-search-icon">@include('components.icon', ['name' => 'search', 'size' => 16])</span>
+        <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" />
+        <button type="submit" class="btn-surface btn-surface-compact">Cari</button>
+    </form>
+@endsection
+
+@section('main')
+    <section class="hero dashboard-hero dashboard-summary-hero">
         <div>
-            <h2>Portal pengelolaan data RUP yang serius, cepat, dan profesional.</h2>
-            <p>Dashboard ini dirancang untuk menampilkan data pengadaan secara terstruktur, siap dipakai untuk eksekutif, tim operasi, dan integrasi API modern.</p>
+            <div class="eyebrow">RUP intelligence</div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">Fokus utama di sini adalah ringkasan data, distribusi, dan akses cepat ke detail record.</p>
         </div>
-        <div class="pill">Connected to database • magang_db</div>
+        <div class="hero-meta">
+            <div class="pill">Realtime • {{ now()->format('d M Y') }}</div>
+            <a href="{{ route('notifications') }}" class="btn-surface bell-link" aria-label="Notifications">
+                @include('components.icon', ['name' => 'bell', 'size' => 18]) Notifications
+            </a>
+        </div>
     </section>
 
     <section class="stats-grid" id="stats-grid">
+        @php
+            $statMeta = [
+                'Total RUP' => ['icon' => 'speedometer', 'subtitle' => 'Seluruh data yang tersimpan'],
+                'Tahun Anggaran' => ['icon' => 'clock', 'subtitle' => 'Rekap tahun berjalan'],
+                'Terkirim Penawaran' => ['icon' => 'send', 'subtitle' => 'Status pengiriman aktif'],
+                'Prospek Pekerjaan' => ['icon' => 'message', 'subtitle' => 'Peluang yang sedang dipantau'],
+                'SIRUP' => ['icon' => 'bell', 'subtitle' => 'Sinkronisasi dan publikasi'],
+                'Import Data' => ['icon' => 'download', 'subtitle' => 'Data hasil impor terbaru'],
+            ];
+        @endphp
         @foreach ($stats as $stat)
-            <div class="card {{ $stat['tone'] }}">
-                <div class="label">{{ $stat['label'] }}</div>
-                <div class="value">{{ $stat['value'] }}</div>
+            @php($meta = $statMeta[$stat['label']] ?? ['icon' => 'speedometer', 'subtitle' => 'Ringkasan data'])
+            <div class="card metric-card {{ $stat['tone'] }}">
+                <div class="metric-card-top">
+                    <div class="metric-icon metric-icon-{{ $stat['tone'] }}">@include('components.ui.icon', ['name' => $meta['icon'], 'size' => 18])</div>
+                    <div class="metric-label">{{ $stat['label'] }}</div>
+                </div>
+                <div class="metric-value">{{ $stat['value'] }}</div>
+                <div class="metric-subtitle">{{ $meta['subtitle'] }}</div>
             </div>
         @endforeach
     </section>
 
-    <section class="table-wrap" style="margin-top:16px;">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <section class="table-wrap section-stack section-spacing dashboard-toolbar">
+        <div class="toolbar dashboard-toolbar-header">
             <div>
-                <h3 style="margin:0 0 8px;">Daftar RUP</h3>
-                <p class="text-muted" style="margin:0;">Tabel ini menampilkan isi database RUP langsung dari MySQL.</p>
+                <h3 class="section-title">Daftar RUP</h3>
+                <p class="section-description">Tabel ini menampilkan isi database RUP langsung dari MySQL.</p>
             </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                <a href="{{ route('rup.download', request()->query()) }}" class="btn btn-outline-primary d-inline-flex align-items-center" style="gap:8px; padding:8px 14px;">
+            <div class="toolbar-actions">
+                <a href="{{ route('rup.download', request()->query()) }}" class="btn-surface">
                     @include('components.icon', ['name' => 'download', 'size' => 16]) Download Excel
                 </a>
-                <form method="GET" action="/" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                    <input class="form-control" type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" style="min-width:240px;" />
-                    <select class="form-select" name="tahun_anggaran" style="min-width:160px;">
-                        <option value="">Semua Tahun</option>
-                        @foreach ($years as $year)
-                            <option value="{{ $year }}" {{ request('tahun_anggaran') == $year ? 'selected' : '' }}>{{ $year }}</option>
-                        @endforeach
-                    </select>
-                    <button type="submit" class="btn btn-primary" style="padding:8px 14px;">Filter</button>
-                </form>
             </div>
         </div>
 
-        <div class="table-responsive">
-        <table class="table table-striped align-middle">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>ID RUP</th>
-                    <th>Nama Pekerjaan</th>
-                    <th>Pagu</th>
-                    <th>Metode</th>
-                    <th>Instansi</th>
-                    <th>Tahun</th>
-                    <th>Created</th>
-                    <th>Detail</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($records as $record)
-                    <tr>
-                        <td>{{ $record->id }}</td>
-                        <td>{{ $record->id_rup }}</td>
-                        <td>{{ $record->nama_pekerjaan }}</td>
-                        <td>{{ $record->pagu }}</td>
-                        <td>{{ $record->nama_metode_pengadaan }}</td>
-                        <td>{{ $record->nama_instansi }}</td>
-                        <td>{{ $record->tahun_anggaran }}</td>
-                        <td>{{ optional($record->created_at)->format('d M Y') }}</td>
-                        <td><a href="{{ route('records.show', $record) }}" class="text-decoration-none">Lihat</a></td>
-                    </tr>
-                @empty
-                    <tr><td colspan="9">Belum ada data yang sesuai filter.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
+        <form method="GET" action="{{ route('dashboard') }}" class="filter-form dashboard-toolbar-form">
+            <div class="toolbar-search">
+                <label class="sr-only" for="dashboard-search">Cari data</label>
+                <input id="dashboard-search" type="text" name="search" value="{{ request('search') }}" class="form-input field-search" placeholder="Cari pekerjaan, instansi, atau ID RUP" />
+            </div>
 
-        <div class="d-flex gap-2 align-items-center mt-3">
-            @if ($records->onFirstPage() === false)
-                <a href="{{ $records->previousPageUrl() }}" class="btn btn-outline-secondary">Sebelumnya</a>
-            @endif
-            <span class="text-muted">Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}</span>
-            @if ($records->hasMorePages())
-                <a href="{{ $records->nextPageUrl() }}" class="btn btn-outline-secondary">Selanjutnya</a>
-            @endif
-        </div>
+            <div class="toolbar-filter">
+                <label class="sr-only" for="dashboard-year">Tahun anggaran</label>
+                <select id="dashboard-year" name="tahun_anggaran" class="form-select field-year" aria-label="Tahun anggaran">
+                    <option value="">Semua Tahun</option>
+                    @foreach ($years as $year)
+                        <option value="{{ $year }}" {{ request('tahun_anggaran') == $year ? 'selected' : '' }}>{{ $year }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            @isset($statuses)
+                <div class="toolbar-filter">
+                    <select name="status" class="form-select field-year" aria-label="Status">
+                        <option value="">Semua Status</option>
+                        @foreach ($statuses as $status)
+                            <option value="{{ $status }}" {{ request('status') == $status ? 'selected' : '' }}>{{ $status }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endisset
+
+            @isset($agencies)
+                <div class="toolbar-filter">
+                    <select name="agency" class="form-select field-year" aria-label="Agency">
+                        <option value="">Semua Agency</option>
+                        @foreach ($agencies as $agency)
+                            <option value="{{ $agency }}" {{ request('agency') == $agency ? 'selected' : '' }}>{{ $agency }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endisset
+
+            <button type="submit" class="btn-primary">Filter</button>
+            <a href="{{ route('rup.download', request()->query()) }}" class="btn-surface">
+                @include('components.icon', ['name' => 'download', 'size' => 16]) Download Excel
+            </a>
+            <a href="{{ url()->full() }}" class="btn-surface">
+                @include('components.icon', ['name' => 'clock', 'size' => 16]) Refresh
+            </a>
+        </form>
+
+        <div class="table-responsive dashboard-table">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>ID RUP</th>
+                        <th>Nama Pekerjaan</th>
+                        <th>Pagu</th>
+                        <th>Metode</th>
+                        <th>Instansi</th>
+                        <th>Tahun</th>
+                        <th>Created</th>
+                        <th>Detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($records as $record)
+                        <tr>
+                            <td>{{ $record->id }}</td>
+                            <td>{{ $record->id_rup }}</td>
+                            <td>{{ $record->nama_pekerjaan }}</td>
+                            <td>{{ $record->pagu }}</td>
+                            <td>{{ $record->nama_metode_pengadaan }}</td>
+                            <td>{{ $record->nama_instansi }}</td>
+                            <td>{{ $record->tahun_anggaran }}</td>
+                            <td>{{ optional($record->created_at)->format('d M Y') }}</td>
+                            <td><a href="{{ route('records.show', $record) }}" class="text-decoration-none">Lihat</a></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="9">Belum ada data yang sesuai filter.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+
+            <div class="pagination pagination-row">
+                @if ($records->onFirstPage() === false)
+                    <a href="{{ $records->previousPageUrl() }}" class="btn-surface">Sebelumnya</a>
+                @endif
+                <span class="text-muted">Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}</span>
+                @if ($records->hasMorePages())
+                    <a href="{{ $records->nextPageUrl() }}" class="btn-surface">Selanjutnya</a>
+                @endif
+            </div>
         </div>
     </section>
 
-    <!-- <section class="card" style="margin-top:16px;">
-        <h3 style="margin-top:0;">OpenClaw Preview</h3>
-        <p class="text-muted" style="margin-bottom:12px;">Mock interface untuk integrasi scraping data dari OpenClaw.</p>
-        <a href="{{ route('openclaw') }}" class="btn-primary">Buka preview</a>
-        <div class="preview-box" style="margin-top:16px;">
-            <div style="font-size:1.2rem; font-weight:700;">{{ number_format($totalRecords, 0, ',', '.') }} item</div>
-            <div class="text-muted" style="margin-top:6px; margin-bottom:12px;">Data ini langsung diambil dari tabel RUP, siap dikirim ke n8n.</div>
-            <div style="position:relative; height:220px;">
-                <canvas id="chartSeriesCanvas"></canvas>
-            </div>
-        </div>
-    </section> -->
-
-    <section class="chart-box">
-        <div class="card">
-            <h3 style="margin-top:0;">Trend bulanan</h3>
-            <div style="position:relative; height:220px;">
+    <section class="chart-grid">
+        <div class="card chart-card">
+            <h3 class="section-title">Trend bulanan</h3>
+            <div class="chart-frame">
                 <canvas id="monthlyTrendCanvas"></canvas>
             </div>
         </div>
-        <div class="card">
-            <h3 style="margin-top:0;">Status breakdown</h3>
-            <div style="position:relative; height:220px;">
+        <div class="card chart-card">
+            <h3 class="section-title">Status breakdown</h3>
+            <div class="chart-frame">
                 <canvas id="statusBreakdownCanvas"></canvas>
             </div>
         </div>
@@ -142,17 +190,17 @@
         const statusBreakdownData = @json($statusBreakdown);
 
         const palette = {
-            primary: '#6366f1',
-            primaryFaint: 'rgba(99, 102, 241, 0.15)',
-            secondary: '#22d3ee',
-            secondaryFaint: 'rgba(34, 211, 238, 0.15)',
-            slices: ['#6366f1', '#22d3ee', '#f59e0b', '#ef4444', '#10b981', '#a855f7'],
-            grid: 'rgba(148, 163, 184, 0.15)',
-            text: '#94a3b8',
+            primary: '#2f6fed',
+            primaryFaint: 'rgba(47, 111, 237, 0.14)',
+            secondary: '#0f9f6e',
+            secondaryFaint: 'rgba(15, 159, 110, 0.14)',
+            slices: ['#2f6fed', '#0f9f6e', '#d98b08', '#dc4c64', '#7c3aed', '#0ea5e9'],
+            grid: 'rgba(148, 163, 184, 0.16)',
+            text: getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#94a3b8',
         };
 
         Chart.defaults.color = palette.text;
-        Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+        Chart.defaults.font.family = "'Manrope', 'Inter', system-ui, sans-serif";
 
         // --- OpenClaw Preview: bar chart ---
         new Chart(document.getElementById('chartSeriesCanvas'), {
