@@ -6,6 +6,7 @@ use App\Exports\RupExport;
 use App\Models\N8nWebhookLog;
 use App\Models\RupRecord;
 use App\Models\SystemNotification;
+use App\Repositories\SirupRepository;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
@@ -46,8 +47,9 @@ class DashboardController extends Controller
         $chartSeries = $this->buildChartSeries();
         $monthlySeries = $this->buildMonthlySeries();
         $statusBreakdown = $this->buildStatusBreakdown();
+        $dashboardSummary = $this->buildDashboardSummary();
 
-        return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords'));
+        return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
     }
 
     /**
@@ -60,6 +62,7 @@ class DashboardController extends Controller
             'success' => true,
             'data' => [
                 'stats' => $this->buildStats(),
+                'summary' => $this->buildDashboardSummary(),
                 'recent_records' => RupRecord::latest('created_at')->take(8)->get()->map(function ($record) {
                     return [
                         'id' => $record->id,
@@ -297,6 +300,7 @@ class DashboardController extends Controller
 
             $created = 0;
             $updated = 0;
+            $unchanged= 0;   // biar semua data tetap tampil    
             $skipped = 0;
             $errors = [];
 
@@ -363,6 +367,10 @@ class DashboardController extends Controller
                         $existingById->save();
                         $updated++;
                     }
+
+                } else {
+
+                    $unchanged++;
                     // jika tidak dirty, anggap tidak ada perubahan
                     continue;
                 }
@@ -408,7 +416,7 @@ class DashboardController extends Controller
             }
 
             $event = $payload['event'] ?? 'n8n_import';
-            $message = $payload['message'] ?? "Import selesai: {$created} baru, {$updated} diperbarui, {$skipped} dilewati.";
+            $message = $payload['message'] ?? "Import selesai: {$created} baru, {$updated} diperbarui, {$unchanged} tidak berubah, {$skipped} dilewati.";
 
             N8nWebhookLog::create([
                 'source' => $payload['source'] ?? 'n8n',
@@ -436,6 +444,7 @@ class DashboardController extends Controller
                 'data' => [
                     'created' => $created,
                     'updated' => $updated,
+                    'unchanged' => $unchanged,
                     'skipped' => $skipped,
                     'errors' => $errors,
                     'message' => $message,
@@ -592,6 +601,11 @@ class DashboardController extends Controller
             ['label' => 'Review', 'value' => $imported],
             ['label' => 'Selesai', 'value' => $sirup],
         ];
+    }
+
+    private function buildDashboardSummary(): array
+    {
+        return app(SirupRepository::class)->summary();
     }
 
     private function buildChatResponse(string $message): string
