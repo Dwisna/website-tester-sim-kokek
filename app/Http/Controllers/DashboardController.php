@@ -357,21 +357,23 @@ class DashboardController extends Controller
                     continue;
                 }
 
-                // Jika id_rup tersedia, gunakan updateOrCreate (tetap menghindari duplikat id)
+                // Jika id_rup tersedia, cek apakah sudah ada
                 $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
 
                 if ($existingById) {
-                    // Update hanya jika ada perubahan sebenarnya untuk mengurangi noise
+
+                    // Isi data baru ke model
                     $existingById->fill($normalized);
+
+                    // Kalau ada perubahan → update
                     if ($existingById->isDirty()) {
-                        $existingById->save();
-                        $updated++;
-                    }
-
-                } else {
-
+                    $existingById->save();
+                    $updated++;
+                    } else {
+                    // Sudah ada dan tidak berubah
                     $unchanged++;
-                    // jika tidak dirty, anggap tidak ada perubahan
+                }
+
                     continue;
                 }
 
