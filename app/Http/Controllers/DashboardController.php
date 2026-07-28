@@ -300,7 +300,7 @@ class DashboardController extends Controller
 
             $created = 0;
             $updated = 0;
-            $unchanged = 0;   // biar semua data tetap tampil    
+            // $unchanged= 0;   // biar semua data tetap tampil    
             $skipped = 0;
             $errors = [];
 
@@ -357,30 +357,23 @@ class DashboardController extends Controller
                     continue;
                 }
 
-                // Jika id_rup tersedia, gunakan updateOrCreate
-if (!empty($normalized['id_rup'])) {
+                // Jika id_rup tersedia, gunakan updateOrCreate (tetap menghindari duplikat id)
+                $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
 
-    $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
+                if ($existingById) {
+                    // Update hanya jika ada perubahan sebenarnya untuk mengurangi noise
+                    $existingById->fill($normalized);
+                    if ($existingById->isDirty()) {
+                        $existingById->save();
+                        $updated++;
+                    }
 
-    if ($existingById) {
+                } else {
 
-        $existingById->fill($normalized);
-
-        if ($existingById->isDirty()) {
-            $existingById->save();
-            $updated++;
-        } else {
-            $unchanged++;
-        }
-
-    } else {
-
-        RupRecord::create($normalized);
-        $created++;
-    }
-
-    continue;
-}
+                    // $unchanged++;
+                    // jika tidak dirty, anggap tidak ada perubahan
+                    continue;
+                }
 
                 // Kalau belum ada record dengan id_rup, cek duplikat berdasar nama+instansi+tahun
                 $dupQuery = RupRecord::query();
@@ -423,7 +416,7 @@ if (!empty($normalized['id_rup'])) {
             }
 
             $event = $payload['event'] ?? 'n8n_import';
-            $message = $payload['message'] ?? "Import selesai: {$created} baru, {$updated} diperbarui, {$unchanged} tidak berubah, {$skipped} dilewati.";
+            $message = $payload['message'] ?? "Import selesai: {$created} baru, {$updated} diperbarui, {$skipped} dilewati.";
 
             N8nWebhookLog::create([
                 'source' => $payload['source'] ?? 'n8n',
@@ -451,7 +444,7 @@ if (!empty($normalized['id_rup'])) {
                 'data' => [
                     'created' => $created,
                     'updated' => $updated,
-                    'unchanged' => $unchanged,
+                    // 'unchanged' => $unchanged,
                     'skipped' => $skipped,
                     'errors' => $errors,
                     'message' => $message,
