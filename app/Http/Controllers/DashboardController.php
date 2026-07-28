@@ -300,7 +300,7 @@ class DashboardController extends Controller
 
             $created = 0;
             $updated = 0;
-            $unchanged= 0;   // biar semua data tetap tampil    
+            $unchanged = 0;   // biar semua data tetap tampil    
             $skipped = 0;
             $errors = [];
 
@@ -357,25 +357,30 @@ class DashboardController extends Controller
                     continue;
                 }
 
-                // Jika id_rup tersedia, cek apakah sudah ada
-                $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
+                // Jika id_rup tersedia, gunakan updateOrCreate
+if (!empty($normalized['id_rup'])) {
 
-                if ($existingById) {
+    $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
 
-                    // Isi data baru ke model
-                    $existingById->fill($normalized);
+    if ($existingById) {
 
-                    // Kalau ada perubahan → update
-                    if ($existingById->isDirty()) {
-                    $existingById->save();
-                    $updated++;
-                    } else {
-                    // Sudah ada dan tidak berubah
-                    $unchanged++;
-                }
+        $existingById->fill($normalized);
 
-                    continue;
-                }
+        if ($existingById->isDirty()) {
+            $existingById->save();
+            $updated++;
+        } else {
+            $unchanged++;
+        }
+
+    } else {
+
+        RupRecord::create($normalized);
+        $created++;
+    }
+
+    continue;
+}
 
                 // Kalau belum ada record dengan id_rup, cek duplikat berdasar nama+instansi+tahun
                 $dupQuery = RupRecord::query();
