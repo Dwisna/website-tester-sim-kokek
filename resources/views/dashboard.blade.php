@@ -120,7 +120,7 @@
         </form>
 
         <div class="table-responsive dashboard-table">
-            <table class="table table-striped align-middle">
+            <table class="table align-middle">
                 <thead>
                     <tr>
                         <th>#</th>

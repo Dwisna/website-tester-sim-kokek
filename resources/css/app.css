@@ -292,7 +292,7 @@ body.dark .theme-toggle .icon-dark { display: inline-flex !important; }
     padding: 10px 14px;
     border-radius: 999px;
     color: var(--muted);
-    background: rgba(255, 255, 255, 0.18);
+    background: var(--panel-2);
     backdrop-filter: blur(12px);
 }
 
@@ -317,7 +317,9 @@ body.dark .theme-toggle .icon-dark { display: inline-flex !important; }
 }
 
 .hero {
-    background: linear-gradient(120deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 100%);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
     padding: 26px;
     display: flex;
     justify-content: space-between;
@@ -482,7 +484,7 @@ th {
 .btn-primary {
     border: none;
     border-radius: 16px;
-    background: linear-gradient(135deg, var(--accent-2), #1747c7);
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
     color: var(--btn-primary-text);
     padding: 10px 16px;
     font-weight: 700;
@@ -590,7 +592,7 @@ th {
     padding: 8px 12px;
     border-radius: 999px;
     border: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.22);
+    background: var(--panel-2);
     color: var(--muted);
     font-size: 0.85rem;
     margin-bottom: 14px;
