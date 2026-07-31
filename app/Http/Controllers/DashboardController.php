@@ -367,17 +367,24 @@ class DashboardController extends Controller
                         $existingById->save();
                         $updated++;
                     }
-
-                } else {
-
-                    // $unchanged++;
-                    // jika tidak dirty, anggap tidak ada perubahan
+                    //bug e nde kene 
                     continue;
-                }
+                } 
 
                 // Kalau belum ada record dengan id_rup, cek duplikat berdasar nama+instansi+tahun
                 $dupQuery = RupRecord::query();
                 if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
+                    //Jika tidak cukup data untuk cek duplikasiii , langsung ke crate ssaja
+                    $record = RupRecord::create($normalized);
+                    if ($record) {
+                        $created++;
+                    } else {
+                        $skipped++;
+                        $errors[] = "Index {$i}: gagal membuat record baru.";
+                    }
+                    continue;
+
+                    $dupQuery = RupRecord::query();
                     $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
                     $namaI = trim(mb_strtolower($normalized['nama_instansi']));
 
