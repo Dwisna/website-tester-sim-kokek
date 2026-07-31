@@ -24,16 +24,16 @@
                 @include('components.ui.icon', ['name' => 'speedometer', 'size' => 18])
                 <span>Dashboard</span>
             </a>
-            <a href="{{ route('history') }}" class="sidebar-nav-link @if(request()->routeIs('history')) is-active @endif">
+            <!-- <a href="{{ route('history') }}" class="sidebar-nav-link @if(request()->routeIs('history')) is-active @endif">
                 @include('components.ui.icon', ['name' => 'clock', 'size' => 18])
                 <span>History</span>
-            </a>
+            </a> -->
         </nav>
 
-        <div class="sidebar-footer">
+        <!-- <div class="sidebar-footer">
             <div class="sidebar-footer-label">Workspace</div>
             <div class="sidebar-footer-copy">Clean SaaS dashboard shell</div>
-        </div>
+        </div> -->
     </aside>
 
     <div class="app-main">
