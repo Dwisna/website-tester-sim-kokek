@@ -135,6 +135,4 @@ composer run test
 php artisan test
 ```
 
-## Lisensi
 
-Proyek ini menggunakan [MIT License](https://opensource.org/licenses/MIT).
