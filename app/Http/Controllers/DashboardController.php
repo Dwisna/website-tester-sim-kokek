@@ -13,6 +13,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -35,48 +37,124 @@ class DashboardController extends Controller
             $query->where('tahun_anggaran', $request->tahun_anggaran);
         }
 
-        $records = $query->orderByDesc('created_at')->paginate(10)->withQueryString();
-        $years = RupRecord::select('tahun_anggaran')
-            ->whereNotNull('tahun_anggaran')
-            ->groupBy('tahun_anggaran')
-            ->orderBy('tahun_anggaran', 'desc')
-            ->pluck('tahun_anggaran');
+        try {
+            $records = $query->orderByDesc('created_at')->paginate(10)->withQueryString();
+            $years = RupRecord::select('tahun_anggaran')
+                ->whereNotNull('tahun_anggaran')
+                ->groupBy('tahun_anggaran')
+                ->orderBy('tahun_anggaran', 'desc')
+                ->pluck('tahun_anggaran');
 
-        $stats = $this->buildStats();
-        $totalRecords = RupRecord::count();
-        $chartSeries = $this->buildChartSeries();
-        $monthlySeries = $this->buildMonthlySeries();
-        $statusBreakdown = $this->buildStatusBreakdown();
-        $dashboardSummary = $this->buildDashboardSummary();
+            $stats = $this->buildStats();
+            $totalRecords = RupRecord::count();
+            $chartSeries = $this->buildChartSeries();
+            $monthlySeries = $this->buildMonthlySeries();
+            $statusBreakdown = $this->buildStatusBreakdown();
+            $dashboardSummary = $this->buildDashboardSummary();
 
-        return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
+        } catch (\Throwable $e) {
+            Log::error('Dashboard index error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            $page = (int) $request->get('page', 1);
+            $perPage = 10;
+            $records = new LengthAwarePaginator([], 0, $perPage, $page, ['path' => $request->url(), 'query' => $request->query()]);
+            $years = collect();
+            $stats = [];
+            $totalRecords = 0;
+            $chartSeries = [];
+            $monthlySeries = [];
+            $statusBreakdown = [];
+            $dashboardSummary = [];
+
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'))
+                ->with('error_message', 'Terjadi kesalahan saat memuat dashboard: '.$e->getMessage());
+        }
     }
 
     /**
      * API untuk data dashboard (dipanggil oleh frontend untuk update realtime).
      * Mengembalikan statistik, entri terbaru, dan seri chart.
      */
-    public function dashboardApi(): JsonResponse
+    public function dashboardApi(Request $request): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'stats' => $this->buildStats(),
-                'summary' => $this->buildDashboardSummary(),
-                'recent_records' => RupRecord::latest('created_at')->take(8)->get()->map(function ($record) {
-                    return [
-                        'id' => $record->id,
-                        'nama_pekerjaan' => $record->nama_pekerjaan,
-                        'nama_instansi' => $record->nama_instansi,
-                        'tahun_anggaran' => $record->tahun_anggaran,
-                        'created_at' => $record->created_at?->format('Y-m-d H:i'),
-                    ];
-                }),
-                'chart_series' => $this->buildChartSeries(),
-                'monthly_series' => $this->buildMonthlySeries(),
-                'status_breakdown' => $this->buildStatusBreakdown(),
-            ],
-        ]);
+        try {
+            $query = RupRecord::query();
+
+            // search across nama_pekerjaan, nama_instansi, id_rup
+            if ($request->filled('search')) {
+                $q = $request->input('search');
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('nama_pekerjaan', 'like', "%{$q}%")
+                        ->orWhere('nama_instansi', 'like', "%{$q}%")
+                        ->orWhere('id_rup', 'like', "%{$q}%");
+                });
+            }
+
+            if ($request->filled('tahun_anggaran')) {
+                $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
+            }
+
+            // range filter: today/week/month/all
+            $range = $request->input('range', 'all');
+            if (in_array($range, ['today', 'week', 'month'], true)) {
+                $now = now();
+                if ($range === 'today') {
+                    $query->whereDate('created_at', $now->toDateString());
+                } elseif ($range === 'week') {
+                    $start = $now->startOfWeek();
+                    $end = $now->endOfWeek();
+                    $query->whereBetween('created_at', [$start, $end]);
+                } elseif ($range === 'month') {
+                    $start = $now->startOfMonth();
+                    $end = $now->endOfMonth();
+                    $query->whereBetween('created_at', [$start, $end]);
+                }
+            }
+
+            $page = (int) $request->input('page', 1);
+            $perPage = 10;
+            $records = $query->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+            $recordsData = $records->map(function ($record) {
+                return [
+                    'id' => $record->id,
+                    'id_rup' => $record->id_rup,
+                    'nama_pekerjaan' => $record->nama_pekerjaan,
+                    'pagu' => $record->pagu,
+                    'nama_metode_pengadaan' => $record->nama_metode_pengadaan,
+                    'nama_instansi' => $record->nama_instansi,
+                    'tahun_anggaran' => $record->tahun_anggaran,
+                    'created_at' => $record->created_at?->toDateTimeString(),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'stats' => $this->buildStats(),
+                    'summary' => $this->buildDashboardSummary(),
+                    'records' => $recordsData,
+                    'pagination' => [
+                        'current_page' => $records->currentPage(),
+                        'last_page' => $records->lastPage(),
+                        'per_page' => $records->perPage(),
+                        'total' => $records->total(),
+                        'next_page_url' => $records->nextPageUrl(),
+                        'prev_page_url' => $records->previousPageUrl(),
+                    ],
+                    'chart_series' => $this->buildChartSeries(),
+                    'monthly_series' => $this->buildMonthlySeries(),
+                    'status_breakdown' => $this->buildStatusBreakdown(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('dashboardApi error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengambil data dashboard: '.$e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -130,9 +208,14 @@ class DashboardController extends Controller
      */
     public function historyPage()
     {
-        $history = N8nWebhookLog::latest('created_at')->take(20)->get();
-
-        return view('history', compact('history'));
+        try {
+            $history = N8nWebhookLog::latest('created_at')->take(20)->get();
+            return view('history', compact('history'));
+        } catch (\Throwable $e) {
+            Log::error('historyPage error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            $history = collect();
+            return view('history', compact('history'))->with('error_message', 'Terjadi kesalahan saat memuat history: '.$e->getMessage());
+        }
     }
 
     /**
@@ -140,18 +223,23 @@ class DashboardController extends Controller
      */
     public function historyApi(): JsonResponse
     {
-        $history = N8nWebhookLog::latest('created_at')->take(10)->get()->map(function ($item) {
-            return [
-                'event' => $item->event ?? 'webhook',
-                'detail' => $item->message ?? 'Pesan diterima',
-                'timestamp' => $item->created_at?->toDateTimeString(),
-            ];
-        });
+        try {
+            $history = N8nWebhookLog::latest('created_at')->take(10)->get()->map(function ($item) {
+                return [
+                    'event' => $item->event ?? 'webhook',
+                    'detail' => $item->message ?? 'Pesan diterima',
+                    'timestamp' => $item->created_at?->toDateTimeString(),
+                ];
+            });
 
-        return response()->json([
-            'success' => true,
-            'data' => $history,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $history,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('historyApi error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil history: '.$e->getMessage()], 500);
+        }
     }
 
     /**
@@ -174,23 +262,28 @@ class DashboardController extends Controller
      */
     public function notificationsApi(): JsonResponse
     {
-        $notifications = SystemNotification::latest('created_at')->take(20)->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'title' => $item->title,
-                'message' => $item->message,
-                'type' => $item->type,
-                'priority' => $item->priority,
-                'link' => $item->link,
-                'is_read' => $item->is_read,
-                'created_at' => $item->created_at?->toDateTimeString(),
-            ];
-        });
+        try {
+            $notifications = SystemNotification::latest('created_at')->take(20)->get()->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'title' => $item->title,
+                    'message' => $item->message,
+                    'type' => $item->type,
+                    'priority' => $item->priority,
+                    'link' => $item->link,
+                    'is_read' => $item->is_read,
+                    'created_at' => $item->created_at?->toDateTimeString(),
+                ];
+            });
 
-        return response()->json([
-            'success' => true,
-            'data' => $notifications,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $notifications,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('notificationsApi error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil notifikasi: '.$e->getMessage()], 500);
+        }
     }
 
     /**
@@ -198,9 +291,14 @@ class DashboardController extends Controller
      */
     public function notificationsPage()
     {
-        $notifications = SystemNotification::latest('created_at')->take(20)->get();
-
-        return view('notifications', compact('notifications'));
+        try {
+            $notifications = SystemNotification::latest('created_at')->take(20)->get();
+            return view('notifications', compact('notifications'));
+        } catch (\Throwable $e) {
+            Log::error('notificationsPage error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            $notifications = collect();
+            return view('notifications', compact('notifications'))->with('error_message', 'Terjadi kesalahan saat memuat notifikasi: '.$e->getMessage());
+        }
     }
 
     /**
@@ -209,41 +307,46 @@ class DashboardController extends Controller
      */
     public function n8nWebhook(Request $request): JsonResponse
     {
-        $payload = $request->all();
-        $message = $payload['message'] ?? 'Pesan masuk tanpa isi';
-        $customer = $payload['customer'] ?? 'unknown';
-        $event = $payload['event'] ?? 'customer_message';
-        $channel = $payload['channel'] ?? 'web';
+        try {
+            $payload = $request->all();
+            $message = $payload['message'] ?? 'Pesan masuk tanpa isi';
+            $customer = $payload['customer'] ?? 'unknown';
+            $event = $payload['event'] ?? 'customer_message';
+            $channel = $payload['channel'] ?? 'web';
 
-        N8nWebhookLog::create([
-            'source' => $payload['source'] ?? 'n8n',
-            'event' => $event,
-            'channel' => $channel,
-            'payload' => $payload,
-            'message' => $message,
-            'customer' => $customer,
-            'status' => 'accepted',
-        ]);
-
-        SystemNotification::create([
-            'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
-            'message' => $message,
-            'type' => 'n8n',
-            'priority' => $payload['priority'] ?? 'medium',
-            'link' => $payload['link'] ?? null,
-            'source' => $payload['source'] ?? 'n8n',
-            'payload' => $payload,
-            'is_read' => false,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'status' => 'accepted',
-                'message' => 'Webhook diterima dan disimpan sebelum diproses lebih lanjut.',
+            N8nWebhookLog::create([
+                'source' => $payload['source'] ?? 'n8n',
                 'event' => $event,
-            ],
-        ]);
+                'channel' => $channel,
+                'payload' => $payload,
+                'message' => $message,
+                'customer' => $customer,
+                'status' => 'accepted',
+            ]);
+
+            SystemNotification::create([
+                'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
+                'message' => $message,
+                'type' => 'n8n',
+                'priority' => $payload['priority'] ?? 'medium',
+                'link' => $payload['link'] ?? null,
+                'source' => $payload['source'] ?? 'n8n',
+                'payload' => $payload,
+                'is_read' => false,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'status' => 'accepted',
+                    'message' => 'Webhook diterima dan disimpan sebelum diproses lebih lanjut.',
+                    'event' => $event,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('n8nWebhook error: '.$e->getMessage(), ['trace' => $e->getTraceAsString(), 'payload' => $request->all()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat memproses webhook: '.$e->getMessage()], 500);
+        }
     }
 
     /**
@@ -273,6 +376,9 @@ class DashboardController extends Controller
             $payload = $request->all();
             $recordPayload = $payload['records'] ?? null;
 
+            // opsi atomic: jika true (default) maka seluruh proses dibatalkan jika ada error validasi
+            $atomic = $request->has('atomic') ? filter_var($request->input('atomic'), FILTER_VALIDATE_BOOLEAN) : true;
+
             // Kalau records dikirim sebagai JSON string (bukan array), decode dulu
             if (is_string($recordPayload)) {
                 $decoded = json_decode($recordPayload, true);
@@ -300,81 +406,60 @@ class DashboardController extends Controller
 
             $created = 0;
             $updated = 0;
-            // $unchanged= 0;   // biar semua data tetap tampil    
             $skipped = 0;
             $errors = [];
 
             DB::beginTransaction();
             try {
                 foreach ($recordPayload as $i => $recordData) {
-                if (!is_array($recordData)) {
-                    $skipped++;
-                    $errors[] = "Index {$i}: data bukan object/array, dilewati.";
-                    continue;
-                }
+                    if (!is_array($recordData)) {
+                        $skipped++;
+                        $errors[] = "Index {$i}: data bukan object/array, dilewati.";
+                        continue;
+                    }
 
-                $normalized = $this->normalizeRupData($recordData);
+                    $normalized = $this->normalizeRupData($recordData);
 
-                // id_rup wajib untuk proses update/create; jika kosong, coba deteksi
-                // duplikat berdasarkan nama_pekerjaan + nama_instansi + tahun_anggaran
-                if (empty($normalized['id_rup'])) {
-                    // Jika tidak ada id_rup, cek apakah ada record persis sama
-                    $query = RupRecord::query();
+                    // Validasi minimal: harus ada id_rup atau (nama_pekerjaan + nama_instansi)
+                    if (empty($normalized['id_rup']) && (empty($normalized['nama_pekerjaan']) || empty($normalized['nama_instansi']))) {
+                        $skipped++;
+                        $errors[] = "Index {$i}: field 'id_rup' kosong dan tidak cukup data untuk deteksi/penyimpanan, dilewati.";
+                        continue;
+                    }
 
+                    if (!empty($normalized['id_rup'])) {
+                        $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
+                        if ($existingById) {
+                            $existingById->fill($normalized);
+                            if ($existingById->isDirty()) {
+                                $existingById->save();
+                                $updated++;
+                            }
+                            continue;
+                        }
+                    }
+
+                    // Jika belum ada id_rup, cek duplikat berdasar nama+instansi+tahun
+                    $dupQuery = RupRecord::query();
                     if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
                         $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
                         $namaI = trim(mb_strtolower($normalized['nama_instansi']));
 
-                        $query->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
+                        $dupQuery->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
                             ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
 
                         if (!empty($normalized['tahun_anggaran'])) {
-                            $query->where('tahun_anggaran', $normalized['tahun_anggaran']);
+                            $dupQuery->where('tahun_anggaran', $normalized['tahun_anggaran']);
                         }
-                    } else {
-                        // Tidak ada kunci yang cukup untuk validasi; lewati
-                        $skipped++;
-                        $errors[] = "Index {$i}: field 'id_rup' kosong dan tidak cukup data untuk deteksi duplikat, dilewati.";
-                        continue;
+
+                        if ($dupQuery->exists()) {
+                            $skipped++;
+                            $errors[] = "Index {$i}: menemukan record serupa (nama_instansi/nama_pekerjaan/tahun), dilewati untuk mencegah duplikasi.";
+                            continue;
+                        }
                     }
 
-                    if ($query->exists()) {
-                        $skipped++;
-                        $errors[] = "Index {$i}: ditemukan duplikat berdasarkan nama_instansi/nama_pekerjaan/tahun, dilewati.";
-                        continue;
-                    }
-
-                    // Tidak ditemukan duplikat, buat record baru
-                    $record = RupRecord::create($normalized);
-
-                    if ($record) {
-                        $created++;
-                    } else {
-                        $skipped++;
-                        $errors[] = "Index {$i}: gagal membuat record baru.";
-                    }
-
-                    continue;
-                }
-
-                // Jika id_rup tersedia, gunakan updateOrCreate (tetap menghindari duplikat id)
-                $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
-
-                if ($existingById) {
-                    // Update hanya jika ada perubahan sebenarnya untuk mengurangi noise
-                    $existingById->fill($normalized);
-                    if ($existingById->isDirty()) {
-                        $existingById->save();
-                        $updated++;
-                    }
-                    //bug e nde kene 
-                    continue;
-                } 
-
-                // Kalau belum ada record dengan id_rup, cek duplikat berdasar nama+instansi+tahun
-                $dupQuery = RupRecord::query();
-                if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
-                    //Jika tidak cukup data untuk cek duplikasiii , langsung ke crate ssaja
+                    // Buat record baru
                     $record = RupRecord::create($normalized);
                     if ($record) {
                         $created++;
@@ -382,40 +467,23 @@ class DashboardController extends Controller
                         $skipped++;
                         $errors[] = "Index {$i}: gagal membuat record baru.";
                     }
-                    continue;
-
-                    $dupQuery = RupRecord::query();
-                    $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
-                    $namaI = trim(mb_strtolower($normalized['nama_instansi']));
-
-                    $dupQuery->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
-                        ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
-
-                    if (!empty($normalized['tahun_anggaran'])) {
-                        $dupQuery->where('tahun_anggaran', $normalized['tahun_anggaran']);
-                    }
                 }
 
-                if ($dupQuery->exists()) {
-                    $skipped++;
-                    $errors[] = "Index {$i}: menemukan record serupa (nama_instansi/nama_pekerjaan/tahun), dilewati untuk mencegah duplikasi.";
-                    continue;
+                // Jika mode atomic dan ada error validasi/skip, batalkan seluruh transaksi
+                if ($atomic && count($errors) > 0) {
+                    DB::rollBack();
+                    Log::warning('n8nImport validation errors, transaction rolled back', ['errors' => $errors, 'atomic' => $atomic]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Import dibatalkan karena ditemukan error pada data input.',
+                        'errors' => $errors,
+                    ], 422);
                 }
 
-                // Tidak ada duplikat; buat record baru
-                $record = RupRecord::create($normalized);
-
-                if ($record) {
-                        $created++;
-                    } else {
-                        $skipped++;
-                        $errors[] = "Index {$i}: gagal membuat record baru.";
-                    }
-            }
                 DB::commit();
             } catch (\Throwable $e) {
                 DB::rollBack();
-                Log::error('n8nImport transaction failed: '.$e->getMessage());
+                Log::error('n8nImport transaction failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Terjadi kesalahan saat memproses import: '.$e->getMessage(),
@@ -451,7 +519,6 @@ class DashboardController extends Controller
                 'data' => [
                     'created' => $created,
                     'updated' => $updated,
-                    // 'unchanged' => $unchanged,
                     'skipped' => $skipped,
                     'errors' => $errors,
                     'message' => $message,
@@ -545,20 +612,22 @@ class DashboardController extends Controller
     private function buildStats(): array
     {
         $total = RupRecord::count();
-        $thisYear = (string) date('Y');
-        $currentYear = RupRecord::where('tahun_anggaran', $thisYear)->count();
-        $sent = RupRecord::where('is_status_kirim_penawaran', 1)->count();
-        $prospect = RupRecord::where('is_pekerjaan_prospek', 1)->count();
-        $sirup = RupRecord::where('is_sirup', 1)->count();
-        $imported = RupRecord::where('is_import', 1)->count();
+
+        $todayCount = RupRecord::whereDate('created_at', Carbon::today())->count();
+
+        $startOfWeek = Carbon::now()->startOfWeek();
+        $endOfWeek = Carbon::now()->endOfWeek();
+        $weekCount = RupRecord::whereBetween('created_at', [$startOfWeek, $endOfWeek])->count();
+
+        $startOfMonth = Carbon::now()->startOfMonth();
+        $endOfMonth = Carbon::now()->endOfMonth();
+        $monthCount = RupRecord::whereBetween('created_at', [$startOfMonth, $endOfMonth])->count();
 
         return [
             ['label' => 'Total RUP', 'value' => number_format($total, 0, ',', '.'), 'tone' => 'primary'],
-            ['label' => 'Tahun Anggaran', 'value' => number_format($currentYear, 0, ',', '.'), 'tone' => 'accent'],
-            ['label' => 'Terkirim Penawaran', 'value' => number_format($sent, 0, ',', '.'), 'tone' => 'success'],
-            ['label' => 'Prospek Pekerjaan', 'value' => number_format($prospect, 0, ',', '.'), 'tone' => 'warning'],
-            ['label' => 'SIRUP', 'value' => number_format($sirup, 0, ',', '.'), 'tone' => 'info'],
-            ['label' => 'Import Data', 'value' => number_format($imported, 0, ',', '.'), 'tone' => 'neutral'],
+            ['label' => 'Hari Ini', 'value' => number_format($todayCount, 0, ',', '.'), 'tone' => 'accent'],
+            ['label' => 'Minggu Ini', 'value' => number_format($weekCount, 0, ',', '.'), 'tone' => 'accent'],
+            ['label' => 'Bulan Ini', 'value' => number_format($monthCount, 0, ',', '.'), 'tone' => 'accent'],
         ];
     }
 
