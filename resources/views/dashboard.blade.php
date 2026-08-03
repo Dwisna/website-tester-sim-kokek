@@ -77,6 +77,16 @@
                 <label class="sr-only" for="dashboard-search">Cari data</label>
                 <input id="dashboard-search" type="text" name="search" value="{{ request('search') }}" class="form-input field-search" placeholder="Cari pekerjaan, instansi, atau ID RUP" />
             </div>
+            <div class="toolbar-filter">
+        <label class="sr-only" for="dashboard-per-page">Tampilkan</label>
+        <select id="dashboard-per-page" name="per_page" class="form-select field-year" aria-label="Tampilkan">
+            @foreach ([10, 25, 50, 100] as $perPageOption)
+                <option value="{{ $perPageOption }}" {{ (int) request('per_page', 10) === $perPageOption ? 'selected' : '' }}>
+                    {{ $perPageOption }}
+                </option>
+            @endforeach
+        </select>
+    </div>
 
             <div class="toolbar-filter">
                 <label class="sr-only" for="dashboard-year">Tahun anggaran</label>
@@ -111,9 +121,6 @@
             @endisset
 
             <button type="submit" class="btn-primary">Filter</button>
-            <a href="{{ route('rup.download', request()->query()) }}" class="btn-surface">
-                @include('components.icon', ['name' => 'download', 'size' => 16]) Download Excel
-            </a>
             <a href="{{ url()->full() }}" class="btn-surface">
                 @include('components.icon', ['name' => 'clock', 'size' => 16]) Refresh
             </a>
@@ -153,16 +160,54 @@
                 </tbody>
             </table>
 
-            <div class="pagination pagination-row">
-                @if ($records->onFirstPage() === false)
-                    <a href="{{ $records->previousPageUrl() }}" class="btn-surface">Sebelumnya</a>
-                @endif
-                <span class="text-muted">Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}</span>
-                @if ($records->hasMorePages())
-                    <a href="{{ $records->nextPageUrl() }}" class="btn-surface">Selanjutnya</a>
-                @endif
-            </div>
-        </div>
+            <div class="pagination-row">
+
+    <div class="pagination-info">
+        Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}
+    </div>
+
+    <div class="pagination-links">
+
+        @if(!$records->onFirstPage())
+            <a href="{{ $records->previousPageUrl() }}" class="page-btn">
+                Sebelumnya
+            </a>
+        @endif
+
+        @for($i = 1; $i <= $records->lastPage(); $i++)
+
+            @if($i == $records->currentPage())
+
+                <span class="page-number active">{{ $i }}</span>
+
+            @elseif(
+                $i == 1 ||
+                $i == $records->lastPage() ||
+                abs($i - $records->currentPage()) <= 2
+            )
+
+                <a href="{{ $records->url($i) }}" class="page-number">{{ $i }}</a>
+
+            @elseif(
+                $i == $records->currentPage()-3 ||
+                $i == $records->currentPage()+3
+            )
+
+                <span class="page-number dots">...</span>
+
+            @endif
+
+        @endfor
+
+        @if($records->hasMorePages())
+            <a href="{{ $records->nextPageUrl() }}" class="page-btn">
+                Selanjutnya
+            </a>
+        @endif
+
+    </div>
+
+</div>
     </section>
 
     <section class="chart-grid">
