@@ -171,7 +171,7 @@
                             <td>{{ $record->nama_metode_pengadaan }}</td>
                             <td>{{ $record->nama_instansi }}</td>
                             <td>{{ $record->tahun_anggaran }}</td>
-                            <td>{{ optional($record->created_at)->format('d M Y H:i') }}</td>
+                            <td>{{ optional($record->created_at)->setTimezone('Asia/Jakarta')->format('d M Y H:i') }}</td>
                             <td><a href="{{ route('records.show', $record) }}" class="text-decoration-none">Lihat</a></td>
                         </tr>
                     @endforeach
@@ -381,6 +381,7 @@
                 tr.setAttribute('data-agency', (r.nama_instansi || '').toLowerCase());
                 tr.setAttribute('data-year', r.tahun_anggaran || '');
                 tr.setAttribute('data-created', r.created_at || '');
+                const displayCreated = r.created_at_display ?? r.created_at ?? '';
 
                 tr.innerHTML = `
                     <td>${r.id}</td>
@@ -390,7 +391,7 @@
                     <td>${r.nama_metode_pengadaan ?? ''}</td>
                     <td>${r.nama_instansi ?? ''}</td>
                     <td>${r.tahun_anggaran ?? ''}</td>
-                    <td>${formatDisplayDate(r.created_at)}</td>
+                    <td>${displayCreated}</td>
                     <td><a href="/records/${r.id}" class="text-decoration-none">Lihat</a></td>
                 `;
                 recordsBody.appendChild(tr);
@@ -503,6 +504,15 @@
                     renderRecords(records);
                     const pagination = payload?.data?.pagination ?? {};
                     renderPagination(pagination);
+                    // show/hide topnav notification dot
+                    try {
+                        const unread = Number(payload?.data?.unread_notifications ?? 0);
+                        const dot = document.querySelector('.topnav-icon-dot');
+                        if (dot) dot.style.display = unread > 0 ? 'block' : 'none';
+                    } catch (e) {
+                        // ignore
+                    }
+
                     if (loader) loader.style.display = 'none';
                 })
                 .catch(err => {

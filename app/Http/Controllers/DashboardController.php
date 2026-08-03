@@ -126,6 +126,7 @@ class DashboardController extends Controller
                     'nama_instansi' => $record->nama_instansi,
                     'tahun_anggaran' => $record->tahun_anggaran,
                     'created_at' => $record->created_at?->toDateTimeString(),
+                    'created_at_display' => $record->created_at?->setTimezone('Asia/Jakarta')->format('d M Y H:i'),
                 ];
             });
 
@@ -148,6 +149,7 @@ class DashboardController extends Controller
                     'chart_series' => $this->buildChartSeries(),
                     'monthly_series' => $this->buildMonthlySeries(),
                     'status_breakdown' => $this->buildStatusBreakdown(),
+                    'unread_notifications' => SystemNotification::where('is_read', 0)->count(),
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -275,6 +277,7 @@ class DashboardController extends Controller
                     'link' => $item->link,
                     'is_read' => $item->is_read,
                     'created_at' => $item->created_at?->toDateTimeString(),
+                    'created_at_display' => $item->created_at?->setTimezone('Asia/Jakarta')->format('d M Y H:i'),
                 ];
             });
 
