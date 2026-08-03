@@ -59,7 +59,7 @@
                 <div class="topnav-action-chip">@include('components.ui.icon', ['name' => 'clock', 'size' => 16]) <span>Realtime</span></div>
                 <a href="{{ route('notifications') }}" class="topnav-icon-btn" aria-label="Notifications">
                     @include('components.ui.icon', ['name' => 'bell', 'size' => 18])
-                    <span class="topnav-icon-dot"></span>
+                        <span class="topnav-icon-dot" style="display:none"></span>
                 </a>
                 @include('components.ui.theme-toggle')
                 <div class="topnav-profile">
@@ -89,5 +89,17 @@
             sidebar.classList.toggle('is-open');
         });
     })();
+        // check unread notifications and toggle dot
+        (function () {
+            fetch('/api/notifications')
+                .then(r => r.json())
+                .then(payload => {
+                    const items = payload?.data ?? [];
+                    const unread = items.filter(i => i.is_read === 0 || i.is_read === false).length;
+                    const dot = document.querySelector('.topnav-icon-dot');
+                    if (dot) dot.style.display = unread > 0 ? 'block' : 'none';
+                })
+                .catch(() => {});
+        })();
 </script>
 @endsection

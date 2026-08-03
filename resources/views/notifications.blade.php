@@ -20,12 +20,16 @@
         <div class="notif-list">
             @forelse ($notifications as $notification)
                 <div class="notif-item">
-                    <div class="notif-avatar">@include('components.icon', ['name' => 'bell', 'size' => 16])</div>
+                    <div class="notif-avatar" style="position:relative;">@include('components.icon', ['name' => 'bell', 'size' => 16])
+                        @if(!$notification->is_read)
+                            <span style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid white;"></span>
+                        @endif
+                    </div>
                     <div>
                         <div class="notif-title">{{ $notification->title }}</div>
                         <div class="notif-message">{{ $notification->message }}</div>
                     </div>
-                    <div class="notif-meta">{{ ucfirst($notification->priority) }} • {{ $notification->created_at->diffForHumans() }}</div>
+                    <div class="notif-meta">{{ ucfirst($notification->priority) }} • {{ $notification->created_at->setTimezone('Asia/Jakarta')->format('d M Y H:i') }}</div>
                 </div>
             @empty
                 <div class="notif-item">
