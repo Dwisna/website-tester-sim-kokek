@@ -14,7 +14,7 @@ class RupRecordSeeder extends Seeder
     {
         $sample = [];
 
-        for ($i = 1; $i <= 35; $i++) {
+        for ($i = 1; $i <= 50; $i++) {
             $sample[] = [
                 'id_rup' => 'RUP-' . str_pad($i, 3, '0', STR_PAD_LEFT),
                 'nama_pekerjaan' => 'Proyek Pengadaan ' . ($i % 5 === 0 ? 'Sistem' : 'Perangkat'),
@@ -40,8 +40,8 @@ class RupRecordSeeder extends Seeder
                 'is_status_kirim_penawaran' => $i % 5 === 0 ? 1 : 0,
                 'id_nomor_surat' => rand(1000, 9999),
                 'input_id' => $i,
-                'created_at' => now()->subDays(35 - $i),
-                'updated_at' => now()->subDays(35 - $i),
+                'created_at' => now()->subDays(50 - $i),
+                'updated_at' => now()->subDays(50 - $i),
             ];
         }
 
