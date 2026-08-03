@@ -81,6 +81,16 @@
                 <label class="sr-only" for="dashboard-search">Cari data</label>
                 <input id="dashboard-search" type="text" name="search" value="{{ request('search') }}" class="form-input field-search" placeholder="Cari pekerjaan, instansi, atau ID RUP" />
             </div>
+            <div class="toolbar-filter">
+        <label class="sr-only" for="dashboard-per-page">Tampilkan</label>
+        <select id="dashboard-per-page" name="per_page" class="form-select field-year" aria-label="Tampilkan">
+            @foreach ([10, 25, 50, 100] as $perPageOption)
+                <option value="{{ $perPageOption }}" {{ (int) request('per_page', 10) === $perPageOption ? 'selected' : '' }}>
+                    {{ $perPageOption }}
+                </option>
+            @endforeach
+        </select>
+    </div>
 
             <div class="toolbar-filter">
                 <label class="sr-only" for="dashboard-year">Tahun anggaran</label>
@@ -125,9 +135,6 @@
             @endisset
 
             <button type="submit" class="btn-primary">Filter</button>
-            <a href="{{ route('rup.download', request()->query()) }}" class="btn-surface">
-                @include('components.icon', ['name' => 'download', 'size' => 16]) Download Excel
-            </a>
             <a href="{{ url()->full() }}" class="btn-surface">
                 @include('components.icon', ['name' => 'clock', 'size' => 16]) Refresh
             </a>
@@ -172,16 +179,54 @@
                 </tbody>
             </table>
 
-            <div class="pagination pagination-row">
-                @if ($records->onFirstPage() === false)
-                    <a href="{{ $records->previousPageUrl() }}" class="btn-surface">Sebelumnya</a>
-                @endif
-                <span class="text-muted">Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}</span>
-                @if ($records->hasMorePages())
-                    <a href="{{ $records->nextPageUrl() }}" class="btn-surface">Selanjutnya</a>
-                @endif
-            </div>
-        </div>
+            <div class="pagination-row">
+
+    <div class="pagination-info">
+        Halaman {{ $records->currentPage() }} dari {{ $records->lastPage() }}
+    </div>
+
+    <div class="pagination-links">
+
+        @if(!$records->onFirstPage())
+            <a href="{{ $records->previousPageUrl() }}" class="page-btn">
+                Sebelumnya
+            </a>
+        @endif
+
+        @for($i = 1; $i <= $records->lastPage(); $i++)
+
+            @if($i == $records->currentPage())
+
+                <span class="page-number active">{{ $i }}</span>
+
+            @elseif(
+                $i == 1 ||
+                $i == $records->lastPage() ||
+                abs($i - $records->currentPage()) <= 2
+            )
+
+                <a href="{{ $records->url($i) }}" class="page-number">{{ $i }}</a>
+
+            @elseif(
+                $i == $records->currentPage()-3 ||
+                $i == $records->currentPage()+3
+            )
+
+                <span class="page-number dots">...</span>
+
+            @endif
+
+        @endfor
+
+        @if($records->hasMorePages())
+            <a href="{{ $records->nextPageUrl() }}" class="page-btn">
+                Selanjutnya
+            </a>
+        @endif
+
+    </div>
+
+</div>
     </section>
 
     <section class="chart-grid">
@@ -354,29 +399,83 @@
 
         function renderPagination(meta) {
             if (!paginationRow) return;
-            const cur = meta.current_page || 1;
-            const last = meta.last_page || 1;
+            const safeMeta = meta || {};
+            const cur = Number(safeMeta.current_page || 1);
+            const last = Number(safeMeta.last_page || 1);
+            const perPage = Number(safeMeta.per_page || 10);
+            const total = Number(safeMeta.total || 0);
+            const from = Number.isFinite(Number(safeMeta.from)) ? Number(safeMeta.from) : (total === 0 ? 0 : ((cur - 1) * perPage) + 1);
+            const to = Number.isFinite(Number(safeMeta.to)) ? Number(safeMeta.to) : Math.min(from + perPage - 1, total);
+
             paginationRow.innerHTML = '';
-            if (cur > 1 && meta.prev_page_url) {
-                const a = document.createElement('a');
-                a.href = '#';
-                a.className = 'btn-surface';
-                a.textContent = 'Sebelumnya';
-                a.addEventListener('click', (e) => { e.preventDefault(); fetchDashboard(cur - 1); });
-                paginationRow.appendChild(a);
+
+            const info = document.createElement('div');
+            info.className = 'pagination-info';
+            info.textContent = `Menampilkan ${from.toLocaleString('id-ID')} sampai ${to.toLocaleString('id-ID')} dari ${total.toLocaleString('id-ID')} entri`;
+            paginationRow.appendChild(info);
+
+            const links = document.createElement('div');
+            links.className = 'pagination-links';
+
+            if (cur > 1) {
+                const prev = document.createElement('a');
+                prev.href = '#';
+                prev.className = 'page-btn';
+                prev.setAttribute('data-page', String(cur - 1));
+                prev.textContent = 'Sebelumnya';
+                prev.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    fetchDashboard(cur - 1);
+                });
+                links.appendChild(prev);
             }
-            const span = document.createElement('span');
-            span.className = 'text-muted';
-            span.textContent = `Halaman ${cur} dari ${last}`;
-            paginationRow.appendChild(span);
-            if (cur < last && meta.next_page_url) {
-                const a2 = document.createElement('a');
-                a2.href = '#';
-                a2.className = 'btn-surface';
-                a2.textContent = 'Selanjutnya';
-                a2.addEventListener('click', (e) => { e.preventDefault(); fetchDashboard(cur + 1); });
-                paginationRow.appendChild(a2);
+
+            for (let i = 1; i <= last; i++) {
+                if (i === cur) {
+                    const span = document.createElement('span');
+                    span.className = 'page-number active';
+                    span.textContent = String(i);
+                    links.appendChild(span);
+                } else if (
+                    i === 1 ||
+                    i === last ||
+                    Math.abs(i - cur) <= 2
+                ) {
+                    const pageLink = document.createElement('a');
+                    pageLink.href = '#';
+                    pageLink.className = 'page-number';
+                    pageLink.setAttribute('data-page', String(i));
+                    pageLink.textContent = String(i);
+                    pageLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        fetchDashboard(i);
+                    });
+                    links.appendChild(pageLink);
+                } else if (
+                    i === cur - 3 ||
+                    i === cur + 3
+                ) {
+                    const dots = document.createElement('span');
+                    dots.className = 'page-number dots';
+                    dots.textContent = '...';
+                    links.appendChild(dots);
+                }
             }
+
+            if (cur < last) {
+                const next = document.createElement('a');
+                next.href = '#';
+                next.className = 'page-btn';
+                next.setAttribute('data-page', String(cur + 1));
+                next.textContent = 'Selanjutnya';
+                next.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    fetchDashboard(cur + 1);
+                });
+                links.appendChild(next);
+            }
+
+            paginationRow.appendChild(links);
         }
 
         function fetchDashboard(page = 1) {

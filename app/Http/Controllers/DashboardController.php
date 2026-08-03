@@ -140,6 +140,8 @@ class DashboardController extends Controller
                         'last_page' => $records->lastPage(),
                         'per_page' => $records->perPage(),
                         'total' => $records->total(),
+                        'from' => $records->firstItem(),
+                        'to' => $records->lastItem(),
                         'next_page_url' => $records->nextPageUrl(),
                         'prev_page_url' => $records->previousPageUrl(),
                     ],
