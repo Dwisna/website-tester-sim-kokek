@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "php84", "php84Extensions.pdo_mysql", "php84Extensions.mysqli", "php84Extensions.openssl", "php84Extensions.mbstring", "php84Extensions.tokenizer", "php84Extensions.xml", "php84Extensions.ctype", "php84Extensions.fileinfo", "php84Packages.composer"]
+nixPkgs = ["nodejs_20", "php83", "php83Packages.composer"]
 
 [phases.install]
 cmds = [

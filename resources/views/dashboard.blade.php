@@ -10,6 +10,10 @@
     <span>Dashboard</span>
 @endsection
 
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+
 @section('topnav-description', '')
 
 @section('topnav-search')
@@ -98,6 +102,16 @@
                 </select>
             </div>
 
+            <div class="toolbar-filter">
+                <label class="sr-only" for="dashboard-range">Rentang waktu</label>
+                <select id="dashboard-range" name="range" class="form-select field-range" aria-label="Rentang waktu">
+                    <option value="all" {{ request('range') == 'all' ? 'selected' : '' }}>Semua</option>
+                    <option value="today" {{ request('range') == 'today' ? 'selected' : '' }}>Hari Ini</option>
+                    <option value="week" {{ request('range') == 'week' ? 'selected' : '' }}>Minggu Ini</option>
+                    <option value="month" {{ request('range') == 'month' ? 'selected' : '' }}>Bulan Ini</option>
+                </select>
+            </div>
+
             @isset($statuses)
                 <div class="toolbar-filter">
                     <select name="status" class="form-select field-year" aria-label="Status">
@@ -127,6 +141,12 @@
         </form>
 
         <div class="table-responsive dashboard-table">
+            <div id="dashboard-loading" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);z-index:10;">
+                <div class="loader" style="background:rgba(255,255,255,0.9);padding:12px 16px;border-radius:8px;display:flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(0,0,0,0.08);">
+                    <div style="width:18px;height:18px;border-radius:50%;border:2px solid #cbd5e1;border-top-color:#2f6fed;animation:spin 0.8s linear infinite"></div>
+                    <div style="font-size:13px;color:#334155">Memuat data...</div>
+                </div>
+            </div>
             <table class="table align-middle">
                 <thead>
                     <tr>
@@ -141,9 +161,9 @@
                         <th>Detail</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @forelse ($records as $record)
-                        <tr>
+                <tbody id="records-body">
+                    @foreach ($records as $record)
+                        <tr data-name="{{ strtolower($record->nama_pekerjaan ?? '') }}" data-id="{{ strtolower($record->id_rup ?? '') }}" data-agency="{{ strtolower($record->nama_instansi ?? '') }}" data-year="{{ $record->tahun_anggaran }}" data-created="{{ $record->created_at?->toIso8601String() }}">
                             <td>{{ $record->id }}</td>
                             <td>{{ $record->id_rup }}</td>
                             <td>{{ $record->nama_pekerjaan }}</td>
@@ -151,12 +171,11 @@
                             <td>{{ $record->nama_metode_pengadaan }}</td>
                             <td>{{ $record->nama_instansi }}</td>
                             <td>{{ $record->tahun_anggaran }}</td>
-                            <td>{{ optional($record->created_at)->format('d M Y') }}</td>
+                            <td>{{ optional($record->created_at)->format('d M Y H:i') }}</td>
                             <td><a href="{{ route('records.show', $record) }}" class="text-decoration-none">Lihat</a></td>
                         </tr>
-                    @empty
-                        <tr><td colspan="9">Belum ada data yang sesuai filter.</td></tr>
-                    @endforelse
+                    @endforeach
+                    <tr id="no-results" style="display: none;"><td colspan="9">Belum ada data yang sesuai filter.</td></tr>
                 </tbody>
             </table>
 
@@ -326,17 +345,181 @@
             },
         });
 
-        fetch('/api/dashboard')
-            .then((response) => response.json())
-            .then((payload) => {
-                const cards = document.querySelectorAll('#stats-grid .card .value');
-                const values = payload?.data?.stats ?? [];
-                cards.forEach((node, index) => {
-                    if (values[index]) {
-                        node.textContent = values[index].value;
-                    }
+        // --- Server-side filtering via AJAX ---
+        const searchInput = document.getElementById('dashboard-search');
+        const yearSelect = document.getElementById('dashboard-year');
+        const rangeSelect = document.getElementById('dashboard-range');
+        const recordsBody = document.getElementById('records-body');
+        const noResults = document.getElementById('no-results');
+        const paginationRow = document.querySelector('.pagination-row');
+
+        function formatDisplayDate(isoString) {
+            if (!isoString) return '';
+            let d = new Date(isoString);
+            if (isNaN(d)) d = new Date(isoString.replace(' ', 'T'));
+            if (isNaN(d)) return isoString;
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const dd = String(d.getDate()).padStart(2,'0');
+            const mm = months[d.getMonth()];
+            const yyyy = d.getFullYear();
+            const hh = String(d.getHours()).padStart(2,'0');
+            const min = String(d.getMinutes()).padStart(2,'0');
+            return `${dd} ${mm} ${yyyy} ${hh}:${min}`;
+        }
+
+        function renderRecords(records) {
+            recordsBody.innerHTML = '';
+            if (!records || records.length === 0) {
+                noResults.style.display = '';
+                return;
+            }
+            noResults.style.display = 'none';
+            for (const r of records) {
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-name', (r.nama_pekerjaan || '').toLowerCase());
+                tr.setAttribute('data-id', (r.id_rup || '').toLowerCase());
+                tr.setAttribute('data-agency', (r.nama_instansi || '').toLowerCase());
+                tr.setAttribute('data-year', r.tahun_anggaran || '');
+                tr.setAttribute('data-created', r.created_at || '');
+
+                tr.innerHTML = `
+                    <td>${r.id}</td>
+                    <td>${r.id_rup ?? ''}</td>
+                    <td>${r.nama_pekerjaan ?? ''}</td>
+                    <td>${r.pagu ?? ''}</td>
+                    <td>${r.nama_metode_pengadaan ?? ''}</td>
+                    <td>${r.nama_instansi ?? ''}</td>
+                    <td>${r.tahun_anggaran ?? ''}</td>
+                    <td>${formatDisplayDate(r.created_at)}</td>
+                    <td><a href="/records/${r.id}" class="text-decoration-none">Lihat</a></td>
+                `;
+                recordsBody.appendChild(tr);
+            }
+        }
+
+        function renderPagination(meta) {
+            if (!paginationRow) return;
+            const safeMeta = meta || {};
+            const cur = Number(safeMeta.current_page || 1);
+            const last = Number(safeMeta.last_page || 1);
+            const perPage = Number(safeMeta.per_page || 10);
+            const total = Number(safeMeta.total || 0);
+            const from = Number.isFinite(Number(safeMeta.from)) ? Number(safeMeta.from) : (total === 0 ? 0 : ((cur - 1) * perPage) + 1);
+            const to = Number.isFinite(Number(safeMeta.to)) ? Number(safeMeta.to) : Math.min(from + perPage - 1, total);
+
+            paginationRow.innerHTML = '';
+
+            const info = document.createElement('div');
+            info.className = 'pagination-info';
+            info.textContent = `Menampilkan ${from.toLocaleString('id-ID')} sampai ${to.toLocaleString('id-ID')} dari ${total.toLocaleString('id-ID')} entri`;
+            paginationRow.appendChild(info);
+
+            const links = document.createElement('div');
+            links.className = 'pagination-links';
+
+            if (cur > 1) {
+                const prev = document.createElement('a');
+                prev.href = '#';
+                prev.className = 'page-btn';
+                prev.setAttribute('data-page', String(cur - 1));
+                prev.textContent = 'Sebelumnya';
+                prev.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    fetchDashboard(cur - 1);
                 });
-            });
+                links.appendChild(prev);
+            }
+
+            for (let i = 1; i <= last; i++) {
+                if (i === cur) {
+                    const span = document.createElement('span');
+                    span.className = 'page-number active';
+                    span.textContent = String(i);
+                    links.appendChild(span);
+                } else if (
+                    i === 1 ||
+                    i === last ||
+                    Math.abs(i - cur) <= 2
+                ) {
+                    const pageLink = document.createElement('a');
+                    pageLink.href = '#';
+                    pageLink.className = 'page-number';
+                    pageLink.setAttribute('data-page', String(i));
+                    pageLink.textContent = String(i);
+                    pageLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        fetchDashboard(i);
+                    });
+                    links.appendChild(pageLink);
+                } else if (
+                    i === cur - 3 ||
+                    i === cur + 3
+                ) {
+                    const dots = document.createElement('span');
+                    dots.className = 'page-number dots';
+                    dots.textContent = '...';
+                    links.appendChild(dots);
+                }
+            }
+
+            if (cur < last) {
+                const next = document.createElement('a');
+                next.href = '#';
+                next.className = 'page-btn';
+                next.setAttribute('data-page', String(cur + 1));
+                next.textContent = 'Selanjutnya';
+                next.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    fetchDashboard(cur + 1);
+                });
+                links.appendChild(next);
+            }
+
+            paginationRow.appendChild(links);
+        }
+
+        function fetchDashboard(page = 1) {
+            const loader = document.getElementById('dashboard-loading');
+            if (loader) loader.style.display = 'flex';
+            const params = new URLSearchParams();
+            const q = (searchInput?.value || '').trim();
+            const y = (yearSelect?.value || '').trim();
+            const range = (rangeSelect?.value || 'all');
+            if (q) params.append('search', q);
+            if (y) params.append('tahun_anggaran', y);
+            if (range && range !== 'all') params.append('range', range);
+            if (page && page > 1) params.append('page', page);
+
+            fetch('/api/dashboard?' + params.toString())
+                .then(r => r.json())
+                .then(payload => {
+                    const values = payload?.data?.stats ?? [];
+                    const cards = document.querySelectorAll('#stats-grid .metric-value');
+                    cards.forEach((node, index) => {
+                        if (values[index]) node.textContent = values[index].value;
+                    });
+
+                    const records = payload?.data?.records ?? [];
+                    renderRecords(records);
+                    const pagination = payload?.data?.pagination ?? {};
+                    renderPagination(pagination);
+                    if (loader) loader.style.display = 'none';
+                })
+                .catch(err => {
+                    console.error('Fetch dashboard failed', err);
+                    if (loader) loader.style.display = 'none';
+                });
+        }
+
+        // bind events
+        const filterForm = document.querySelector('.filter-form');
+        filterForm?.addEventListener('submit', function (e) { e.preventDefault(); fetchDashboard(1); });
+        searchInput?.addEventListener('input', () => fetchDashboard(1));
+        yearSelect?.addEventListener('change', () => fetchDashboard(1));
+        rangeSelect?.addEventListener('change', () => fetchDashboard(1));
+
+        // initial load
+        fetchDashboard(1);
     });
 </script>
 @endpush
