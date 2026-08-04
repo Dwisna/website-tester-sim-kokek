@@ -82,13 +82,11 @@
                 <input id="dashboard-search" type="text" name="search" value="{{ request('search') }}" class="form-input field-search" placeholder="Cari pekerjaan, instansi, atau ID RUP" />
             </div>
             <div class="toolbar-filter">
-        <label class="sr-only" for="dashboard-per-page">Tampilkan</label>
-        <select id="dashboard-per-page" name="per_page" class="form-select field-year" aria-label="Tampilkan">
-            @foreach ([10, 25, 50, 100] as $perPageOption)
-                <option value="{{ $perPageOption }}" {{ (int) request('per_page', 10) === $perPageOption ? 'selected' : '' }}>
-                    {{ $perPageOption }}
-                </option>
-            @endforeach
+                <label class="sr-only" for="dashboard-per-page">Tampilkan</label>
+                <select id="dashboard-per-page" name="per_page" class="form-select field-year" aria-label="Tampilkan">
+                 @foreach ([10, 25, 50, 100] as $perPageOption)
+                    <option value="{{ $perPageOption }}" {{ (int) request('per_page', 10) === $perPageOption ? 'selected' : '' }}> {{ $perPageOption }}</option>
+                @endforeach
         </select>
     </div>
 
@@ -349,6 +347,7 @@
         const searchInput = document.getElementById('dashboard-search');
         const yearSelect = document.getElementById('dashboard-year');
         const rangeSelect = document.getElementById('dashboard-range');
+        const perPageSelect = document.getElementById('dashboard-per-page');
         const recordsBody = document.getElementById('records-body');
         const noResults = document.getElementById('no-results');
         const paginationRow = document.querySelector('.pagination-row');
@@ -489,6 +488,8 @@
             if (q) params.append('search', q);
             if (y) params.append('tahun_anggaran', y);
             if (range && range !== 'all') params.append('range', range);
+            const perPageVal = Number(perPageSelect?.value || 10);
+            if (perPageVal) params.append('per_page', String(perPageVal));
             if (page && page > 1) params.append('page', page);
 
             fetch('/api/dashboard?' + params.toString())
@@ -527,6 +528,7 @@
         searchInput?.addEventListener('input', () => fetchDashboard(1));
         yearSelect?.addEventListener('change', () => fetchDashboard(1));
         rangeSelect?.addEventListener('change', () => fetchDashboard(1));
+        perPageSelect?.addEventListener('change', () => fetchDashboard(1));
 
         // initial load
         fetchDashboard(1);

@@ -468,14 +468,51 @@ th {
 
 .chat-input-row input,
 .form-input,
-.form-select {
+.form-select,
+select {
     border-radius: 16px;
     border: 1px solid var(--input-border);
     background: var(--input-bg);
+    background-color: var(--input-bg);
     color: var(--text);
     padding: 10px 14px;
     outline: none;
     transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+.form-select,
+select {
+    color-scheme: light dark;
+    background: var(--input-bg);
+    background-color: var(--input-bg);
+    color: var(--text);
+}
+
+.form-select option,
+select option {
+    background: var(--input-bg);
+    background-color: var(--input-bg);
+    color: var(--text);
+}
+
+[data-theme="dark"] .form-select,
+body.dark .form-select,
+[data-theme="dark"] select,
+body.dark select {
+    color-scheme: dark;
+    background: var(--input-bg);
+    background-color: var(--input-bg);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+[data-theme="dark"] .form-select option,
+body.dark .form-select option,
+[data-theme="dark"] select option,
+body.dark select option {
+    background: var(--input-bg);
+    background-color: var(--input-bg);
+    color: var(--text);
 }
 
 .chat-input-row input { flex: 1; }
@@ -579,6 +616,7 @@ th {
     gap:8px;
     margin-left:auto;
     width:auto;
+    flex-wrap: wrap;
 }
 .pagination-wrapper{
     margin-top:20px;
