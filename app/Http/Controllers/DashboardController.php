@@ -39,11 +39,13 @@ class DashboardController extends Controller
 
         try {
             $records = $query->orderByDesc('created_at')->paginate(request('per_page', 10))->withQueryString();
-            $years = RupRecord::select('tahun_anggaran')
-                ->whereNotNull('tahun_anggaran')
-                ->groupBy('tahun_anggaran')
-                ->orderBy('tahun_anggaran', 'desc')
-                ->pluck('tahun_anggaran');
+            $minYear = RupRecord::whereNotNull('tahun_anggaran')->min('tahun_anggaran');
+            $maxYear = RupRecord::whereNotNull('tahun_anggaran')->max('tahun_anggaran');
+            if ($minYear && $maxYear) {
+                $years = collect(range($maxYear, $minYear, -1));
+            } else {
+                $years = collect(range(2028, 2021, -1));
+            }
 
             $stats = $this->buildStats();
             $totalRecords = RupRecord::count();
