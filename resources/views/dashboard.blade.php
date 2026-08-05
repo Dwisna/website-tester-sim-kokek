@@ -17,11 +17,11 @@
 @section('topnav-description', '')
 
 @section('topnav-search')
-    <form method="GET" action="{{ route('dashboard') }}" class="topnav-search-form topnav-search-form-compact">
+    <!-- <form method="GET" action="{{ route('dashboard') }}" class="topnav-search-form topnav-search-form-compact">
         <span class="topnav-search-icon">@include('components.icon', ['name' => 'search', 'size' => 16])</span>
         <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" />
         <button type="submit" class="btn-surface btn-surface-compact">Cari</button>
-    </form>
+    </form> -->
 @endsection
 
 @section('main')
@@ -33,9 +33,9 @@
         </div>
         <div class="hero-meta">
             <div class="pill">Realtime • {{ now()->format('d M Y') }}</div>
-            <a href="{{ route('notifications') }}" class="btn-surface bell-link" aria-label="Notifications">
+            <!-- <a href="{{ route('notifications') }}" class="btn-surface bell-link" aria-label="Notifications">
                 @include('components.icon', ['name' => 'bell', 'size' => 18]) Notifications
-            </a>
+            </a> -->
         </div>
     </section>
 
