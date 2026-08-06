@@ -387,9 +387,6 @@ class DashboardController extends Controller
             $payload = $request->all();
             $recordPayload = $payload['records'] ?? null;
 
-            // opsi atomic: jika true (default) maka seluruh proses dibatalkan jika ada error validasi
-            $atomic = $request->has('atomic') ? filter_var($request->input('atomic'), FILTER_VALIDATE_BOOLEAN) : true;
-
             // Kalau records dikirim sebagai JSON string (bukan array), decode dulu
             if (is_string($recordPayload)) {
                 $decoded = json_decode($recordPayload, true);
@@ -420,81 +417,72 @@ class DashboardController extends Controller
             $skipped = 0;
             $errors = [];
 
-            DB::beginTransaction();
             try {
                 foreach ($recordPayload as $i => $recordData) {
-                    if (!is_array($recordData)) {
-                        $skipped++;
-                        $errors[] = "Index {$i}: data bukan object/array, dilewati.";
-                        continue;
-                    }
-
-                    $normalized = $this->normalizeRupData($recordData);
-
-                    // Validasi minimal: harus ada id_rup atau (nama_pekerjaan + nama_instansi)
-                    if (empty($normalized['id_rup']) && (empty($normalized['nama_pekerjaan']) || empty($normalized['nama_instansi']))) {
-                        $skipped++;
-                        $errors[] = "Index {$i}: field 'id_rup' kosong dan tidak cukup data untuk deteksi/penyimpanan, dilewati.";
-                        continue;
-                    }
-
-                    if (!empty($normalized['id_rup'])) {
-                        $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
-                        if ($existingById) {
-                            $existingById->fill($normalized);
-                            if ($existingById->isDirty()) {
-                                $existingById->save();
-                                $updated++;
-                            }
-                            continue;
-                        }
-                    }
-
-                    // Jika belum ada id_rup, cek duplikat berdasar nama+instansi+tahun
-                    $dupQuery = RupRecord::query();
-                    if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
-                        $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
-                        $namaI = trim(mb_strtolower($normalized['nama_instansi']));
-
-                        $dupQuery->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
-                            ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
-
-                        if (!empty($normalized['tahun_anggaran'])) {
-                            $dupQuery->where('tahun_anggaran', $normalized['tahun_anggaran']);
-                        }
-
-                        if ($dupQuery->exists()) {
+                    try {
+                        if (!is_array($recordData)) {
                             $skipped++;
-                            $errors[] = "Index {$i}: menemukan record serupa (nama_instansi/nama_pekerjaan/tahun), dilewati untuk mencegah duplikasi.";
+                            $errors[] = "Index {$i}: data bukan object/array, dilewati.";
                             continue;
                         }
-                    }
 
-                    // Buat record baru
-                    $record = RupRecord::create($normalized);
-                    if ($record) {
-                        $created++;
-                    } else {
+                        $normalized = $this->normalizeRupData($recordData);
+
+                        // Validasi minimal: harus ada id_rup atau (nama_pekerjaan + nama_instansi)
+                        if (empty($normalized['id_rup']) && (empty($normalized['nama_pekerjaan']) || empty($normalized['nama_instansi']))) {
+                            $skipped++;
+                            $errors[] = "Index {$i}: field 'id_rup' kosong dan tidak cukup data untuk deteksi/penyimpanan, dilewati.";
+                            continue;
+                        }
+
+                        if (!empty($normalized['id_rup'])) {
+                            $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
+                            if ($existingById) {
+                                $existingById->fill($normalized);
+                                if ($existingById->isDirty()) {
+                                    $existingById->save();
+                                    $updated++;
+                                }
+                                continue;
+                            }
+                        }
+
+                        // Jika belum ada id_rup, cek duplikat berdasar nama+instansi+tahun
+                        $dupQuery = RupRecord::query();
+                        if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
+                            $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
+                            $namaI = trim(mb_strtolower($normalized['nama_instansi']));
+
+                            $dupQuery->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
+                                ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
+
+                            if (!empty($normalized['tahun_anggaran'])) {
+                                $dupQuery->where('tahun_anggaran', $normalized['tahun_anggaran']);
+                            }
+
+                            if ($dupQuery->exists()) {
+                                $skipped++;
+                                $errors[] = "Index {$i}: menemukan record serupa (nama_instansi/nama_pekerjaan/tahun), dilewati untuk mencegah duplikasi.";
+                                continue;
+                            }
+                        }
+
+                        // Buat record baru
+                        $record = RupRecord::create($normalized);
+                        if ($record) {
+                            $created++;
+                        } else {
+                            $skipped++;
+                            $errors[] = "Index {$i}: gagal membuat record baru.";
+                        }
+                    } catch (\Throwable $e) {
                         $skipped++;
-                        $errors[] = "Index {$i}: gagal membuat record baru.";
+                        $errors[] = "Index {$i}: {$e->getMessage()}";
+                        Log::warning('n8nImport row failed', ['index' => $i, 'error' => $e->getMessage(), 'payload' => $recordData]);
                     }
                 }
-
-                // Jika mode atomic dan ada error validasi/skip, batalkan seluruh transaksi
-                if ($atomic && count($errors) > 0) {
-                    DB::rollBack();
-                    Log::warning('n8nImport validation errors, transaction rolled back', ['errors' => $errors, 'atomic' => $atomic]);
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Import dibatalkan karena ditemukan error pada data input.',
-                        'errors' => $errors,
-                    ], 422);
-                }
-
-                DB::commit();
             } catch (\Throwable $e) {
-                DB::rollBack();
-                Log::error('n8nImport transaction failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                Log::error('n8nImport processing failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Terjadi kesalahan saat memproses import: '.$e->getMessage(),

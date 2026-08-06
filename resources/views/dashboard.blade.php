@@ -485,6 +485,7 @@
             const q = (searchInput?.value || '').trim();
             const y = (yearSelect?.value || '').trim();
             const range = (rangeSelect?.value || 'all');
+            const perPage = (perPageSelect?.value || '').trim();
             if (q) params.append('search', q);
             if (y) params.append('tahun_anggaran', y);
             if (range && range !== 'all') params.append('range', range);
