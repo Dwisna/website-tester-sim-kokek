@@ -17,11 +17,11 @@
 @section('topnav-description', '')
 
 @section('topnav-search')
-    <form method="GET" action="{{ route('dashboard') }}" class="topnav-search-form topnav-search-form-compact">
+    <!-- <form method="GET" action="{{ route('dashboard') }}" class="topnav-search-form topnav-search-form-compact">
         <span class="topnav-search-icon">@include('components.icon', ['name' => 'search', 'size' => 16])</span>
         <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" />
         <button type="submit" class="btn-surface btn-surface-compact">Cari</button>
-    </form>
+    </form> -->
 @endsection
 
 @section('main')
@@ -33,9 +33,9 @@
         </div>
         <div class="hero-meta">
             <div class="pill">Realtime • {{ now()->format('d M Y') }}</div>
-            <a href="{{ route('notifications') }}" class="btn-surface bell-link" aria-label="Notifications">
+            <!-- <a href="{{ route('notifications') }}" class="btn-surface bell-link" aria-label="Notifications">
                 @include('components.icon', ['name' => 'bell', 'size' => 18]) Notifications
-            </a>
+            </a> -->
         </div>
     </section>
 
@@ -82,13 +82,11 @@
                 <input id="dashboard-search" type="text" name="search" value="{{ request('search') }}" class="form-input field-search" placeholder="Cari pekerjaan, instansi, atau ID RUP" />
             </div>
             <div class="toolbar-filter">
-        <label class="sr-only" for="dashboard-per-page">Tampilkan</label>
-        <select id="dashboard-per-page" name="per_page" class="form-select field-year" aria-label="Tampilkan">
-            @foreach ([10, 25, 50, 100] as $perPageOption)
-                <option value="{{ $perPageOption }}" {{ (int) request('per_page', 10) === $perPageOption ? 'selected' : '' }}>
-                    {{ $perPageOption }}
-                </option>
-            @endforeach
+                <label class="sr-only" for="dashboard-per-page">Tampilkan</label>
+                <select id="dashboard-per-page" name="per_page" class="form-select field-year" aria-label="Tampilkan">
+                 @foreach ([10, 25, 50, 100] as $perPageOption)
+                    <option value="{{ $perPageOption }}" {{ (int) request('per_page', 10) === $perPageOption ? 'selected' : '' }}> {{ $perPageOption }}</option>
+                @endforeach
         </select>
     </div>
 
@@ -491,7 +489,8 @@
             if (q) params.append('search', q);
             if (y) params.append('tahun_anggaran', y);
             if (range && range !== 'all') params.append('range', range);
-            if (perPage) params.append('per_page', perPage);
+            const perPageVal = Number(perPageSelect?.value || 10);
+            if (perPageVal) params.append('per_page', String(perPageVal));
             if (page && page > 1) params.append('page', page);
 
             fetch('/api/dashboard?' + params.toString())

@@ -38,17 +38,14 @@ class DashboardController extends Controller
         }
 
         try {
-            $allowed = [10, 25, 50, 100];
-            $perPage = (int) $request->input('per_page', 10);
-            if (!in_array($perPage, $allowed, true)) {
-                $perPage = 10;
+            $records = $query->orderByDesc('created_at')->paginate(request('per_page', 10))->withQueryString();
+            $minYear = RupRecord::whereNotNull('tahun_anggaran')->min('tahun_anggaran');
+            $maxYear = RupRecord::whereNotNull('tahun_anggaran')->max('tahun_anggaran');
+            if ($minYear && $maxYear) {
+                $years = collect(range($maxYear, $minYear, -1));
+            } else {
+                $years = collect(range(2028, 2021, -1));
             }
-            $records = $query->orderByDesc('created_at')->paginate($perPage)->withQueryString();
-            $years = RupRecord::select('tahun_anggaran')
-                ->whereNotNull('tahun_anggaran')
-                ->groupBy('tahun_anggaran')
-                ->orderBy('tahun_anggaran', 'desc')
-                ->pluck('tahun_anggaran');
 
             $stats = $this->buildStats();
             $totalRecords = RupRecord::count();
@@ -118,12 +115,11 @@ class DashboardController extends Controller
             }
 
             $page = (int) $request->input('page', 1);
-            $allowed = [10, 25, 50, 100];
             $perPage = (int) $request->input('per_page', 10);
+            $allowed = [10, 25, 50, 100];
             if (!in_array($perPage, $allowed, true)) {
                 $perPage = 10;
             }
-
             $records = $query->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page)->withQueryString();
 
             $recordsData = $records->map(function ($record) {
