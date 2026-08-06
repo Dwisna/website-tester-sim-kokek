@@ -132,7 +132,7 @@
                 </div>
             @endisset
 
-            <button type="submit" class="btn-primary">Filter</button>
+            <!-- <button type="submit" class="btn-primary">Filter</button> -->
             <a href="{{ url()->full() }}" class="btn-surface">
                 @include('components.icon', ['name' => 'clock', 'size' => 16]) Refresh
             </a>
