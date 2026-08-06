@@ -349,6 +349,7 @@
         const searchInput = document.getElementById('dashboard-search');
         const yearSelect = document.getElementById('dashboard-year');
         const rangeSelect = document.getElementById('dashboard-range');
+        const perPageSelect = document.getElementById('dashboard-per-page');
         const recordsBody = document.getElementById('records-body');
         const noResults = document.getElementById('no-results');
         const paginationRow = document.querySelector('.pagination-row');
@@ -486,9 +487,11 @@
             const q = (searchInput?.value || '').trim();
             const y = (yearSelect?.value || '').trim();
             const range = (rangeSelect?.value || 'all');
+            const perPage = (perPageSelect?.value || '').trim();
             if (q) params.append('search', q);
             if (y) params.append('tahun_anggaran', y);
             if (range && range !== 'all') params.append('range', range);
+            if (perPage) params.append('per_page', perPage);
             if (page && page > 1) params.append('page', page);
 
             fetch('/api/dashboard?' + params.toString())
@@ -527,6 +530,7 @@
         searchInput?.addEventListener('input', () => fetchDashboard(1));
         yearSelect?.addEventListener('change', () => fetchDashboard(1));
         rangeSelect?.addEventListener('change', () => fetchDashboard(1));
+        perPageSelect?.addEventListener('change', () => fetchDashboard(1));
 
         // initial load
         fetchDashboard(1);
