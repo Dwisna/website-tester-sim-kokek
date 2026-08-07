@@ -334,45 +334,17 @@ class DashboardController extends Controller
                 'customer' => $customer,
                 'status' => 'accepted',
             ]);
-            $notification = SystemNotification::where('source', $payload['source'] ?? 'n8n')
-    ->latest()
-    ->first();
 
-if ($notification) {
-    // Update notifikasi yang sudah ada
-    $notification->update([
-        'title' => $payload['title'] ?? 'Sinkronisasi Data',
-        'message' => $message,
-        'type' => 'n8n',
-        'priority' => $payload['priority'] ?? 'medium',
-        'link' => $payload['link'] ?? null,
-        'payload' => $payload,
-        'is_read' => false,
-    ]);
-} else {
-    // Buat notifikasi pertama
-    SystemNotification::create([
-        'title' => $payload['title'] ?? 'Sinkronisasi Data',
-        'message' => $message,
-        'type' => 'n8n',
-        'priority' => $payload['priority'] ?? 'medium',
-        'link' => $payload['link'] ?? null,
-        'source' => $payload['source'] ?? 'n8n',
-        'payload' => $payload,
-        'is_read' => false,
-    ]);
-}
-
-            // SystemNotification::create([
-            //     'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
-            //     'message' => $message,
-            //     'type' => 'n8n',
-            //     'priority' => $payload['priority'] ?? 'medium',
-            //     'link' => $payload['link'] ?? null,
-            //     'source' => $payload['source'] ?? 'n8n',
-            //     'payload' => $payload,
-            //     'is_read' => false,
-            // ]);
+            SystemNotification::create([
+                'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
+                'message' => $message,
+                'type' => 'n8n',
+                'priority' => $payload['priority'] ?? 'medium',
+                'link' => $payload['link'] ?? null,
+                'source' => $payload['source'] ?? 'n8n',
+                'payload' => $payload,
+                'is_read' => false,
+            ]);
 
             return response()->json([
                 'success' => true,
