@@ -753,11 +753,15 @@ body.dark select option {
 }
 
 .field-search {
-    min-width: 240px;
+    min-width: 271px;
 }
 
 .field-year {
     min-width: 160px;
+}
+.per-page-select{
+    width: 90px;
+    min-width: 90px;
 }
 
 .item { padding: 12px 0; border-bottom: 1px solid var(--border); }

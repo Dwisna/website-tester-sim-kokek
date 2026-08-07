@@ -83,7 +83,7 @@
             </div>
             <div class="toolbar-filter">
                 <label class="sr-only" for="dashboard-per-page">Tampilkan</label>
-                <select id="dashboard-per-page" name="per_page" class="form-select field-year" aria-label="Tampilkan">
+                <select id="dashboard-per-page" name="per_page" class="form-select per-page-select" aria-label="Tampilkan">
                  @foreach ([10, 25, 50, 100] as $perPageOption)
                     <option value="{{ $perPageOption }}" {{ (int) request('per_page', 10) === $perPageOption ? 'selected' : '' }}> {{ $perPageOption }}</option>
                 @endforeach
