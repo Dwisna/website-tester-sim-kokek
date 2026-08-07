@@ -334,29 +334,17 @@ class DashboardController extends Controller
                 'customer' => $customer,
                 'status' => 'accepted',
             ]);
-            if (!($payload['disable_notification'] ?? false)) {
-    SystemNotification::create([
-        'title' => $payload['title'] ?? 'Import data n8n',
-        'message' => $message,
-        'type' => 'n8n_import',
-        'priority' => $payload['priority'] ?? 'high',
-        'link' => $payload['link'] ?? null,
-        'source' => $payload['source'] ?? 'n8n',
-        'payload' => $payload,
-        'is_read' => false,
-    ]);
-}
 
-            // SystemNotification::create([
-            //     'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
-            //     'message' => $message,
-            //     'type' => 'n8n',
-            //     'priority' => $payload['priority'] ?? 'medium',
-            //     'link' => $payload['link'] ?? null,
-            //     'source' => $payload['source'] ?? 'n8n',
-            //     'payload' => $payload,
-            //     'is_read' => false,
-            // ]);
+            SystemNotification::create([
+                'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
+                'message' => $message,
+                'type' => 'n8n',
+                'priority' => $payload['priority'] ?? 'medium',
+                'link' => $payload['link'] ?? null,
+                'source' => $payload['source'] ?? 'n8n',
+                'payload' => $payload,
+                'is_read' => false,
+            ]);
 
             return response()->json([
                 'success' => true,
