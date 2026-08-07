@@ -335,16 +335,16 @@ class DashboardController extends Controller
                 'status' => 'accepted',
             ]);
 
-            SystemNotification::create([
-                'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
-                'message' => $message,
-                'type' => 'n8n',
-                'priority' => $payload['priority'] ?? 'medium',
-                'link' => $payload['link'] ?? null,
-                'source' => $payload['source'] ?? 'n8n',
-                'payload' => $payload,
-                'is_read' => false,
-            ]);
+            // SystemNotification::create([
+            //     'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
+            //     'message' => $message,
+            //     'type' => 'n8n',
+            //     'priority' => $payload['priority'] ?? 'medium',
+            //     'link' => $payload['link'] ?? null,
+            //     'source' => $payload['source'] ?? 'n8n',
+            //     'payload' => $payload,
+            //     'is_read' => false,
+            // ]);
 
             return response()->json([
                 'success' => true,
