@@ -403,7 +403,7 @@ body.dark .theme-toggle .icon-dark { display: inline-flex !important; }
     overflow: hidden;
 }
 
-.dashboard-table .table-responsive {
+.table-responsive.dashboard-table{
     overflow: auto;
 }
 
