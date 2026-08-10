@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'dashboard' => [
+        'user' => env('DASHBOARD_USER'),
+        'pass' => env('DASHBOARD_PASS'),
+    ],
+
 ];

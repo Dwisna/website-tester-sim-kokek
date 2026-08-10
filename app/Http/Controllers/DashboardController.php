@@ -111,12 +111,12 @@ class DashboardController extends Controller
                 if ($range === 'today') {
                     $query->whereDate('created_at', $now->toDateString());
                 } elseif ($range === 'week') {
-                    $start = $now->startOfWeek();
-                    $end = $now->endOfWeek();
+                    $start = $now->copy()->startOfWeek();
+                    $end = $now->copy()->endOfWeek();
                     $query->whereBetween('created_at', [$start, $end]);
                 } elseif ($range === 'month') {
-                    $start = $now->startOfMonth();
-                    $end = $now->endOfMonth();
+                    $start = $now->copy()->startOfMonth();
+                    $end = $now->copy()->endOfMonth();
                     $query->whereBetween('created_at', [$start, $end]);
                 }
             }
