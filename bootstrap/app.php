@@ -19,6 +19,23 @@ return Application::configure(basePath: dirname(__DIR__))
             'verify.n8n.secret' => VerifyN8nSecret::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
-        //
+    ->withExceptions(function (Exceptions $exceptions) {
+    $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+        if ($request->is('n8n/*') || $request->is('api/*')) {
+            $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+
+            $message = match ($status) {
+                404 => 'Endpoint tidak ditemukan.',
+                401 => 'Akses ditolak. Autentikasi tidak valid.',
+                403 => 'Akses dibatasi.',
+                default => 'Terjadi kesalahan pada server.',
+            };
+
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], $status);
+        }
+    });
+
     })->create();
