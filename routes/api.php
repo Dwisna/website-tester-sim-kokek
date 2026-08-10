@@ -11,6 +11,6 @@ Route::middleware('dashboard.auth')->group(function () {
     Route::get('/notifications', [DashboardController::class, 'notificationsApi']);
     Route::get('/api/download', [DashboardController::class, 'download'])->name('rup.download');
 });
-Route::middleware('verify.n8n.secret')->group(function () {
+
     Route::post('/n8n/import', [DashboardController::class, 'n8nImport']);
-});
+    Route::post('/n8n/webhook', [DashboardController::class, 'n8nWebhook']);
