@@ -28,9 +28,9 @@ class DashboardController extends Controller
         $query = RupRecord::query();
 
         if ($request->filled('search')) {
-            $query->where('nama_pekerjaan', 'like', '%'.$request->search.'%')
-                ->orWhere('nama_instansi', 'like', '%'.$request->search.'%')
-                ->orWhere('id_rup', 'like', '%'.$request->search.'%');
+            $query->where('nama_pekerjaan', 'like', '%' . $request->search . '%')
+                ->orWhere('nama_instansi', 'like', '%' . $request->search . '%')
+                ->orWhere('id_rup', 'like', '%' . $request->search . '%');
         }
 
         if ($request->filled('tahun_anggaran')) {
@@ -56,7 +56,7 @@ class DashboardController extends Controller
 
             return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
         } catch (\Throwable $e) {
-            Log::error('Dashboard index error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('Dashboard index error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
             $page = (int) $request->get('page', 1);
             $perPage = 10;
@@ -70,7 +70,7 @@ class DashboardController extends Controller
             $dashboardSummary = [];
 
             return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'))
-                ->with('error_message', 'Terjadi kesalahan saat memuat dashboard: '.$e->getMessage());
+                ->with('error_message', 'Terjadi kesalahan saat memuat dashboard: ' . $e->getMessage());
         }
     }
 
@@ -80,6 +80,13 @@ class DashboardController extends Controller
      */
     public function dashboardApi(Request $request): JsonResponse
     {
+        $request->validate([
+            'search' => 'nullable|string|max:255',
+            'tahun_anggaran' => 'nullable|integer|digits:4',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|in:10,25,50,100',
+            'range' => 'nullable|in:today,week,month,all',
+        ]);
         try {
             $query = RupRecord::query();
 
@@ -159,10 +166,10 @@ class DashboardController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('dashboardApi error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('dashboardApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat mengambil data dashboard: '.$e->getMessage(),
+                'message' => 'Terjadi kesalahan saat mengambil data dashboard: ',
             ], 500);
         }
     }
@@ -222,9 +229,9 @@ class DashboardController extends Controller
             $history = N8nWebhookLog::latest('created_at')->take(20)->get();
             return view('history', compact('history'));
         } catch (\Throwable $e) {
-            Log::error('historyPage error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('historyPage error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             $history = collect();
-            return view('history', compact('history'))->with('error_message', 'Terjadi kesalahan saat memuat history: '.$e->getMessage());
+            return view('history', compact('history'))->with('error_message', 'Terjadi kesalahan saat memuat history: ' . $e->getMessage());
         }
     }
 
@@ -247,8 +254,8 @@ class DashboardController extends Controller
                 'data' => $history,
             ]);
         } catch (\Throwable $e) {
-            Log::error('historyApi error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil history: '.$e->getMessage()], 500);
+            Log::error('historyApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil history: ',], 500);
         }
     }
 
@@ -292,8 +299,8 @@ class DashboardController extends Controller
                 'data' => $notifications,
             ]);
         } catch (\Throwable $e) {
-            Log::error('notificationsApi error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil notifikasi: '.$e->getMessage()], 500);
+            Log::error('notificationsApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil notifikasi: ',], 500);
         }
     }
 
@@ -306,9 +313,9 @@ class DashboardController extends Controller
             $notifications = SystemNotification::latest('created_at')->take(20)->get();
             return view('notifications', compact('notifications'));
         } catch (\Throwable $e) {
-            Log::error('notificationsPage error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('notificationsPage error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             $notifications = collect();
-            return view('notifications', compact('notifications'))->with('error_message', 'Terjadi kesalahan saat memuat notifikasi: '.$e->getMessage());
+            return view('notifications', compact('notifications'))->with('error_message', 'Terjadi kesalahan saat memuat notifikasi: ' . $e->getMessage());
         }
     }
 
@@ -334,17 +341,45 @@ class DashboardController extends Controller
                 'customer' => $customer,
                 'status' => 'accepted',
             ]);
+            $notification = SystemNotification::where('source', $payload['source'] ?? 'n8n')
+                ->latest()
+                ->first();
 
-            SystemNotification::create([
-                'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
-                'message' => $message,
-                'type' => 'n8n',
-                'priority' => $payload['priority'] ?? 'medium',
-                'link' => $payload['link'] ?? null,
-                'source' => $payload['source'] ?? 'n8n',
-                'payload' => $payload,
-                'is_read' => false,
-            ]);
+            if ($notification) {
+                // Update notifikasi yang sudah ada
+                $notification->update([
+                    'title' => $payload['title'] ?? 'Sinkronisasi Data',
+                    'message' => $message,
+                    'type' => 'n8n',
+                    'priority' => $payload['priority'] ?? 'medium',
+                    'link' => $payload['link'] ?? null,
+                    'payload' => $payload,
+                    'is_read' => false,
+                ]);
+            } else {
+                // Buat notifikasi pertama
+                SystemNotification::create([
+                    'title' => $payload['title'] ?? 'Sinkronisasi Data',
+                    'message' => $message,
+                    'type' => 'n8n',
+                    'priority' => $payload['priority'] ?? 'medium',
+                    'link' => $payload['link'] ?? null,
+                    'source' => $payload['source'] ?? 'n8n',
+                    'payload' => $payload,
+                    'is_read' => false,
+                ]);
+            }
+
+            // SystemNotification::create([
+            //     'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
+            //     'message' => $message,
+            //     'type' => 'n8n',
+            //     'priority' => $payload['priority'] ?? 'medium',
+            //     'link' => $payload['link'] ?? null,
+            //     'source' => $payload['source'] ?? 'n8n',
+            //     'payload' => $payload,
+            //     'is_read' => false,
+            // ]);
 
             return response()->json([
                 'success' => true,
@@ -355,8 +390,8 @@ class DashboardController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('n8nWebhook error: '.$e->getMessage(), ['trace' => $e->getTraceAsString(), 'payload' => $request->all()]);
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat memproses webhook: '.$e->getMessage()], 500);
+            Log::error('n8nWebhook error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString(), 'payload' => $request->all()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat memproses webhook: ' . $e->getMessage()], 500);
         }
     }
 
@@ -384,6 +419,11 @@ class DashboardController extends Controller
     public function n8nImport(Request $request): JsonResponse
     {
         try {
+            if ($request->hasFile('file')) {
+                $request->validate([
+                    'file' => 'file|mimes:json,csv,txt|max:5120', // max 5MB
+                ]);
+            }
             $payload = $request->all();
             $recordPayload = $payload['records'] ?? null;
 
@@ -482,10 +522,10 @@ class DashboardController extends Controller
                     }
                 }
             } catch (\Throwable $e) {
-                Log::error('n8nImport processing failed: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                Log::error('n8nImport processing failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
                 return response()->json([
                     'success' => false,
-                    'message' => 'Terjadi kesalahan saat memproses import: '.$e->getMessage(),
+                    'message' => 'Terjadi kesalahan saat memproses import: ',
                 ], 500);
             }
 
@@ -524,13 +564,13 @@ class DashboardController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('n8nImport error: '.$e->getMessage(), [
+            Log::error('n8nImport error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat memproses import: '.$e->getMessage(),
+                'message' => 'Terjadi kesalahan saat memproses import: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -638,7 +678,7 @@ class DashboardController extends Controller
             ->orderBy('tahun_anggaran')
             ->limit(8)
             ->get()
-            ->map(fn ($row) => [
+            ->map(fn($row) => [
                 'label' => $row->label,
                 'value' => (int) $row->total,
                 'bar_height' => max(20, min(160, ((int) $row->total) * 30)),
@@ -710,12 +750,12 @@ class DashboardController extends Controller
 
         return 'Ini adalah respons OpenClaw mock. Silakan beri perintah seperti "Ringkas data terbaru" atau "Tampilkan status import".';
     }
-    
+
     public function download(Request $request)
     {
         return Excel::download(
-        new RupExport($request->query('search'), $request->query('tahun_anggaran')),
-        'data-rup-' . now()->format('Y-m-d') . '.xlsx'
+            new RupExport($request->query('search'), $request->query('tahun_anggaran')),
+            'data-rup-' . now()->format('Y-m-d') . '.xlsx'
         );
     }
 }
