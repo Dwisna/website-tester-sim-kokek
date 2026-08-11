@@ -50,11 +50,11 @@ class DashboardController extends Controller
             $stats = $this->buildStats();
             $totalRecords = RupRecord::count();
             $chartSeries = $this->buildChartSeries();
-            $monthlySeries = $this->buildMonthlySeries();
+            $weeksSeries = $this->buildWeeklySeries();
             $statusBreakdown = $this->buildStatusBreakdown();
             $dashboardSummary = $this->buildDashboardSummary();
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
         } catch (\Throwable $e) {
             Log::error('Dashboard index error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
@@ -65,11 +65,11 @@ class DashboardController extends Controller
             $stats = [];
             $totalRecords = 0;
             $chartSeries = [];
-            $monthlySeries = [];
+            $weeksSeries = [];
             $statusBreakdown = [];
             $dashboardSummary = [];
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'monthlySeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'))
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'))
                 ->with('error_message', 'Terjadi kesalahan saat memuat dashboard: ' . $e->getMessage());
         }
     }
@@ -160,7 +160,7 @@ class DashboardController extends Controller
                         'prev_page_url' => $records->previousPageUrl(),
                     ],
                     'chart_series' => $this->buildChartSeries(),
-                    'monthly_series' => $this->buildMonthlySeries(),
+                    'weekly_series' => $this->buildWeeklySeries(),
                     'status_breakdown' => $this->buildStatusBreakdown(),
                     'unread_notifications' => SystemNotification::where('is_read', 0)->count(),
                 ],
@@ -687,21 +687,27 @@ class DashboardController extends Controller
             ->all();
     }
 
-    private function buildMonthlySeries(): array
-    {
-        $months = collect();
-        for ($i = 5; $i >= 0; $i--) {
-            $date = now()->subMonths($i);
-            $label = $date->format('M');
-            $count = RupRecord::whereYear('created_at', $date->year)
-                ->whereMonth('created_at', $date->month)
-                ->count();
-            $months->push(['month' => $label, 'value' => $count, 'bar_height' => max(24, min(160, $count * 12))]);
-        }
+    private function buildWeeklySeries(): array {
+    $days = collect();
 
-        return $months->all();
+    $startOfWeek = now()->startOfWeek();
+
+    for ($i = 0; $i < 7; $i++) {
+        $date = $startOfWeek->copy()->addDays($i);
+
+        $count = RupRecord::whereDate('created_at', $date->toDateString())
+            ->count();
+
+        $days->push([
+            'day' => $date->locale('id')->isoFormat('ddd'),
+            'date' => $date->format('Y-m-d'),
+            'value' => $count,
+            'bar_height' => max(24, min(160, $count * 12)),
+        ]);
     }
 
+    return $days->all();
+    }
     private function buildStatusBreakdown(): array
     {
         $total = RupRecord::count();
