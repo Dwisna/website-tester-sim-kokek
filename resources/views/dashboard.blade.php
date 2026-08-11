@@ -229,15 +229,9 @@
 
     <section class="chart-grid">
         <div class="card chart-card">
-            <h3 class="section-title">Trend bulanan</h3>
+            <h3 class="section-title">Trend Mingguan</h3>
             <div class="chart-frame">
-                <canvas id="monthlyTrendCanvas"></canvas>
-            </div>
-        </div>
-        <div class="card chart-card">
-            <h3 class="section-title">Status breakdown</h3>
-            <div class="chart-frame">
-                <canvas id="statusBreakdownCanvas"></canvas>
+                <canvas id="weeklyTrendCanvas"></canvas>
             </div>
         </div>
     </section>
@@ -248,7 +242,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const chartSeriesData    = @json($chartSeries);
-        const monthlySeriesData  = @json($monthlySeries);
+        const weeklySeriesData  = @json($weeksSeries);
         const statusBreakdownData = @json($statusBreakdown);
 
         const palette = {
@@ -290,14 +284,14 @@
             },
         });
 
-        // --- Trend bulanan: line chart ---
-        new Chart(document.getElementById('monthlyTrendCanvas'), {
+        // --- Trend mingguan: line chart ---
+        new Chart(document.getElementById('weeklyTrendCanvas'), {
             type: 'line',
             data: {
-                labels: monthlySeriesData.map(item => item.month),
+                labels: weeklySeriesData.map(item => item.day),
                 datasets: [{
                     label: 'Trend',
-                    data: monthlySeriesData.map(item => item.value ?? item.bar_height),
+                    data: weeklySeriesData.map(item => item.value ?? item.bar_height),
                     fill: true,
                     tension: 0.4,
                     backgroundColor: palette.secondaryFaint,
@@ -309,39 +303,52 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true, grid: { color: palette.grid } },
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                grid: { display: false }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1,
+                    precision: 0
+                },
+                grid: {
+                    color: palette.grid
+                }
+            },
                 },
             },
         });
 
         // --- Status breakdown: doughnut chart ---
-        new Chart(document.getElementById('statusBreakdownCanvas'), {
-            type: 'doughnut',
-            data: {
-                labels: statusBreakdownData.map(item => item.label),
-                datasets: [{
-                    data: statusBreakdownData.map(item => item.value),
-                    backgroundColor: palette.slices,
-                    borderWidth: 0,
-                    hoverOffset: 8,
-                }],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '65%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { boxWidth: 12, padding: 16 },
-                    },
-                },
-            },
-        });
+        // new Chart(document.getElementById('statusBreakdownCanvas'), {
+        //     type: 'doughnut',
+        //     data: {
+        //         labels: statusBreakdownData.map(item => item.label),
+        //         datasets: [{
+        //             data: statusBreakdownData.map(item => item.value),
+        //             backgroundColor: palette.slices,
+        //             borderWidth: 0,
+        //             hoverOffset: 8,
+        //         }],
+        //     },
+        //     options: {
+        //         responsive: true,
+        //         maintainAspectRatio: false,
+        //         cutout: '65%',
+        //         plugins: {
+        //             legend: {
+        //                 position: 'bottom',
+        //                 labels: { boxWidth: 12, padding: 16 },
+        //             },
+        //         },
+        //     },
+        // });
 
         // --- Server-side filtering via AJAX ---
         const searchInput = document.getElementById('dashboard-search');
