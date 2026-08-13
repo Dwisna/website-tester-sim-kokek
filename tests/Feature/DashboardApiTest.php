@@ -1,14 +1,23 @@
 <?php
 
 use App\Models\RupRecord;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class DashboardApiTest extends \Tests\TestCase
 {
     use RefreshDatabase;
 
+    public function test_dashboard_page_requires_authentication(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertRedirect('/login');
+    }
+
     public function test_dashboard_page_renders_professional_overview(): void
     {
+        $this->actingAs(User::factory()->create());
         $response = $this->get('/');
 
         $response->assertStatus(200);
@@ -18,6 +27,7 @@ class DashboardApiTest extends \Tests\TestCase
 
     public function test_dashboard_api_returns_summary_payload(): void
     {
+        $this->actingAs(User::factory()->create());
         $response = $this->getJson('/api/dashboard');
 
         $response->assertStatus(200)
@@ -40,6 +50,7 @@ class DashboardApiTest extends \Tests\TestCase
             'keterangan' => 'sample detail',
         ]);
 
+        $this->actingAs(User::factory()->create());
         $response = $this->get('/records/'.$record->id);
 
         $response->assertStatus(200)
@@ -48,6 +59,7 @@ class DashboardApiTest extends \Tests\TestCase
 
     public function test_openclaw_preview_page_renders(): void
     {
+        $this->actingAs(User::factory()->create());
         $response = $this->get('/openclaw');
 
         $response->assertStatus(200)
@@ -56,6 +68,7 @@ class DashboardApiTest extends \Tests\TestCase
 
     public function test_history_page_renders(): void
     {
+        $this->actingAs(User::factory()->create());
         $response = $this->get('/history');
 
         $response->assertStatus(200)
