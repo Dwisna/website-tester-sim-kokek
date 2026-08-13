@@ -17,11 +17,7 @@
 @section('topnav-description', '')
 
 @section('topnav-search')
-    <!-- <form method="GET" action="{{ route('dashboard') }}" class="topnav-search-form topnav-search-form-compact">
-        <span class="topnav-search-icon">@include('components.icon', ['name' => 'search', 'size' => 16])</span>
-        <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari pekerjaan, instansi, id RUP" />
-        <button type="submit" class="btn-surface btn-surface-compact">Cari</button>
-    </form> -->
+    
 @endsection
 
 @section('main')
@@ -33,9 +29,6 @@
         </div>
         <div class="hero-meta">
             <div class="pill">Realtime • {{ now()->format('d M Y') }}</div>
-            <!-- <a href="{{ route('notifications') }}" class="btn-surface bell-link" aria-label="Notifications">
-                @include('components.icon', ['name' => 'bell', 'size' => 18]) Notifications
-            </a> -->
         </div>
     </section>
 
@@ -70,6 +63,9 @@
                 <p class="section-description">Tabel ini menampilkan isi database RUP langsung dari MySQL.</p>
             </div>
             <div class="toolbar-actions">
+                <a href="{{ url()->full() }}" class="btn-surface">
+                @include('components.icon', ['name' => 'clock', 'size' => 16]) Refresh
+            </a>
                 <a href="{{ route('rup.download', request()->query()) }}" class="btn-surface">
                     @include('components.icon', ['name' => 'download', 'size' => 16]) Download Excel
                 </a>
@@ -132,10 +128,7 @@
                 </div>
             @endisset
 
-            <!-- <button type="submit" class="btn-primary">Filter</button> -->
-            <a href="{{ url()->full() }}" class="btn-surface">
-                @include('components.icon', ['name' => 'clock', 'size' => 16]) Refresh
-            </a>
+            
         </form>
 
         <div class="table-responsive dashboard-table">
@@ -325,30 +318,6 @@
             },
         });
 
-        // --- Status breakdown: doughnut chart ---
-        // new Chart(document.getElementById('statusBreakdownCanvas'), {
-        //     type: 'doughnut',
-        //     data: {
-        //         labels: statusBreakdownData.map(item => item.label),
-        //         datasets: [{
-        //             data: statusBreakdownData.map(item => item.value),
-        //             backgroundColor: palette.slices,
-        //             borderWidth: 0,
-        //             hoverOffset: 8,
-        //         }],
-        //     },
-        //     options: {
-        //         responsive: true,
-        //         maintainAspectRatio: false,
-        //         cutout: '65%',
-        //         plugins: {
-        //             legend: {
-        //                 position: 'bottom',
-        //                 labels: { boxWidth: 12, padding: 16 },
-        //             },
-        //         },
-        //     },
-        // });
 
         // --- Server-side filtering via AJAX ---
         const searchInput = document.getElementById('dashboard-search');
