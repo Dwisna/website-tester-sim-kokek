@@ -108,7 +108,6 @@
             
             <div class="toolbar-filter date-range-picker">
                 <button type="button" class="date-range-trigger" id="date-range-trigger">
-                    <span class="date-range-icon">📅</span>
                     <span id="date-range-text">Pilih tanggal</span>
                 </button>
 
@@ -305,6 +304,33 @@
     </div>
 
 </div>
+    </section>
+
+    {{-- Latest Scraping Note --}}
+    <section class="scraping-note">
+        <div class="scraping-note-icon">
+            @include('components.icon', ['name' => 'clock', 'size' => 18])
+        </div>
+
+        <div class="scraping-note-content">
+            <div class="scraping-note-title">
+                {{ $latestNotification->title ?? 'Belum ada aktivitas scraping' }}
+            </div>
+
+            <div class="scraping-note-message">
+                {{ $latestNotification->message ?? 'Belum ada data scraping terbaru.' }}
+            </div>
+
+            @if($latestNotification?->created_at)
+                <div class="scraping-note-time">
+                    Terakhir diperbarui:
+                    {{ $latestNotification->created_at
+                        ->setTimezone('Asia/Jakarta')
+                        ->format('d M Y H:i') }}
+                    WIB
+                </div>
+            @endif
+        </div>
     </section>
 
     <section class="chart-grid">
