@@ -56,10 +56,13 @@ class DashboardController extends Controller
             $records = $query->orderByDesc('created_at')->paginate(request('per_page', 10))->withQueryString();
             $minYear = RupRecord::whereNotNull('tahun_anggaran')->min('tahun_anggaran');
             $maxYear = RupRecord::whereNotNull('tahun_anggaran')->max('tahun_anggaran');
-            if ($minYear && $maxYear) {
-                $years = collect(range($maxYear, $minYear, -1));
+            // Build descending array of years from DB range; fallback to common range if DB empty
+            if ($minYear !== null && $maxYear !== null && $maxYear >= $minYear) {
+                $years = range((int) $maxYear, (int) $minYear, -1);
+            } elseif ($maxYear !== null) {
+                $years = [(int) $maxYear];
             } else {
-                $years = collect(range(2028, 2021, -1));
+                $years = range((int) now()->year, (int) now()->year - 7, -1);
             }
 
             $stats = $this->buildStats();
