@@ -105,6 +105,93 @@
                     <option value="month" {{ request('range') == 'month' ? 'selected' : '' }}>Bulan Ini</option>
                 </select>
             </div>
+            
+            <div class="toolbar-filter date-range-picker">
+                <button type="button" class="date-range-trigger" id="date-range-trigger">
+                    <span class="date-range-icon">📅</span>
+                    <span id="date-range-text">Pilih tanggal</span>
+                </button>
+
+                <div class="date-range-popup" id="date-range-popup">
+
+                    <div class="date-range-header">
+                        <div>
+                            <div class="date-range-title">Pilih tanggal</div>
+                            <div class="date-range-hint" id="date-range-hint">
+                                Pilih tanggal mulai
+                            </div>
+                        </div>
+
+                        <button type="button" class="date-range-close" id="date-range-close">
+                            ×
+                        </button>
+                    </div>
+
+                    <div class="date-range-selected">
+
+                        <div class="date-selection-box active" id="start-selection">
+                            <span class="selection-label">Tanggal Mulai</span>
+                            <strong id="start-date-text">Pilih tanggal</strong>
+                        </div>
+
+                        <div class="date-selection-arrow">
+                            →
+                        </div>
+
+                        <div class="date-selection-box" id="end-selection">
+                            <span class="selection-label">Tanggal Selesai</span>
+                            <strong id="end-date-text">Opsional</strong>
+                        </div>
+
+                    </div>
+
+                    <div class="calendar">
+
+                        <div class="calendar-header">
+
+                            <button type="button" class="calendar-nav" id="prev-month">
+                                ‹
+                            </button>
+
+                            <strong id="calendar-month">
+                                Agustus 2026
+                            </strong>
+
+                            <button type="button" class="calendar-nav" id="next-month">
+                                ›
+                            </button>
+
+                        </div>
+
+                        <div class="calendar-weekdays">
+                            <span>Sen</span>
+                            <span>Sel</span>
+                            <span>Rab</span>
+                            <span>Kam</span>
+                            <span>Jum</span>
+                            <span>Sab</span>
+                            <span>Min</span>
+                        </div>
+
+                        <div class="calendar-days" id="calendar-days"></div>
+
+                    </div>
+
+                    <div class="date-range-footer">
+
+                        <button type="button" class="date-reset" id="date-reset">
+                            Reset
+                        </button>
+
+                        <button type="button" class="date-apply" id="date-apply">
+                            Terapkan
+                        </button>
+
+                    </div>
+
+                </div>
+
+        </div>
 
             @isset($statuses)
                 <div class="toolbar-filter">
@@ -512,3 +599,384 @@
     });
 </script>
 @endpush
+
+<!-- Date Range -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const trigger = document.getElementById('date-range-trigger');
+    const popup = document.getElementById('date-range-popup');
+    const closeBtn = document.getElementById('date-range-close');
+
+    const calendarDays = document.getElementById('calendar-days');
+    const calendarMonth = document.getElementById('calendar-month');
+
+    const prevMonth = document.getElementById('prev-month');
+    const nextMonth = document.getElementById('next-month');
+
+    const startText = document.getElementById('start-date-text');
+    const endText = document.getElementById('end-date-text');
+
+    const rangeText = document.getElementById('date-range-text');
+    const hint = document.getElementById('date-range-hint');
+
+    const resetBtn = document.getElementById('date-reset');
+    const applyBtn = document.getElementById('date-apply');
+
+    let currentDate = new Date();
+    let startDate = null;
+    let endDate = null;
+
+    const monthNames = [
+        'Januari', 'Februari', 'Maret', 'April',
+        'Mei', 'Juni', 'Juli', 'Agustus',
+        'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    function formatDate(date) {
+        if (!date) return '';
+
+        return String(date.getDate()).padStart(2, '0') + '/' +
+            String(date.getMonth() + 1).padStart(2, '0') + '/' +
+            date.getFullYear();
+    }
+
+    function formatApiDate(date) {
+        if (!date) return '';
+
+        return date.getFullYear() + '-' +
+            String(date.getMonth() + 1).padStart(2, '0') + '-' +
+            String(date.getDate()).padStart(2, '0');
+    }
+
+    function isSameDate(a, b) {
+        if (!a || !b) return false;
+
+        return a.getFullYear() === b.getFullYear() &&
+            a.getMonth() === b.getMonth() &&
+            a.getDate() === b.getDate();
+    }
+
+    function isBetween(date, start, end) {
+        if (!start || !end) return false;
+
+        return date > start && date < end;
+    }
+
+    function renderCalendar() {
+
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        calendarMonth.textContent =
+            `${monthNames[month]} ${year}`;
+
+        calendarDays.innerHTML = '';
+
+        let firstDay = new Date(year, month, 1).getDay();
+
+        firstDay = firstDay === 0 ? 6 : firstDay - 1;
+
+        const daysInMonth =
+            new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) {
+
+            const empty = document.createElement('span');
+
+            empty.className = 'calendar-day empty';
+
+            calendarDays.appendChild(empty);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+
+            const button = document.createElement('button');
+
+            button.type = 'button';
+            button.className = 'calendar-day';
+
+            const date = new Date(year, month, day);
+
+            button.textContent = day;
+
+            const today = new Date();
+
+            if (isSameDate(date, today)) {
+                button.classList.add('today');
+            }
+
+            if (
+                isSameDate(date, startDate) ||
+                isSameDate(date, endDate)
+            ) {
+                button.classList.add('selected');
+            }
+
+            if (isBetween(date, startDate, endDate)) {
+                button.classList.add('in-range');
+            }
+
+            button.addEventListener('click', function (event) {
+
+                event.stopPropagation();
+
+                if (!startDate) {
+
+                    startDate = new Date(date);
+                    endDate = null;
+
+                    hint.textContent =
+                        'Pilih tanggal selesai (opsional)';
+
+                } else if (!endDate) {
+
+                    if (date < startDate) {
+
+                        endDate = new Date(startDate);
+                        startDate = new Date(date);
+
+                    } else {
+
+                        endDate = new Date(date);
+
+                    }
+
+                    hint.textContent =
+                        'Rentang tanggal siap diterapkan';
+
+                } else {
+
+                    startDate = new Date(date);
+                    endDate = null;
+
+                    hint.textContent =
+                        'Pilih tanggal selesai (opsional)';
+                }
+
+                updateSelectedDates();
+                renderCalendar();
+            });
+
+            calendarDays.appendChild(button);
+        }
+    }
+
+    function updateSelectedDates() {
+
+        startText.textContent =
+            startDate ? formatDate(startDate) : 'Pilih tanggal';
+
+        endText.textContent =
+            endDate ? formatDate(endDate) : 'Opsional';
+    }
+
+    trigger.addEventListener('click', function (event) {
+
+        event.stopPropagation();
+
+        popup.classList.toggle('is-open');
+
+    });
+
+    closeBtn.addEventListener('click', function (event) {
+
+        event.stopPropagation();
+
+        popup.classList.remove('is-open');
+
+    });
+
+    applyBtn.addEventListener('click', function (event) {
+
+        event.stopPropagation();
+
+        if (!startDate) {
+
+            rangeText.textContent = 'Pilih tanggal';
+
+            return;
+        }
+
+        if (endDate) {
+
+            rangeText.textContent =
+                `${formatDate(startDate)} - ${formatDate(endDate)}`;
+
+        } else {
+
+            rangeText.textContent =
+                formatDate(startDate);
+
+        }
+
+        popup.classList.remove('is-open');
+
+        // Filter kalender
+        const params = new URLSearchParams();
+
+        const search =
+            document.getElementById('dashboard-search')?.value || '';
+
+        const year =
+            document.getElementById('dashboard-year')?.value || '';
+
+        const perPage =
+            document.getElementById('dashboard-per-page')?.value || '10';
+
+        if (search) {
+            params.append('search', search);
+        }
+
+        if (year) {
+            params.append('tahun_anggaran', year);
+        }
+
+        params.append('start_date', formatApiDate(startDate));
+
+        if (endDate) {
+            params.append('end_date', formatApiDate(endDate));
+        }
+
+        params.append('per_page', perPage);
+
+        fetch('/api/dashboard?' + params.toString())
+            .then(response => response.json())
+            .then(payload => {
+
+                if (!payload.success) {
+                    return;
+                }
+
+                const records =
+                    payload.data.records || [];
+
+                const recordsBody =
+                    document.getElementById('records-body');
+
+                recordsBody.innerHTML = '';
+
+                if (records.length === 0) {
+
+                    recordsBody.innerHTML = `
+                        <tr>
+                            <td colspan="9" style="text-align:center;">
+                                Belum ada data pada tanggal tersebut.
+                            </td>
+                        </tr>
+                    `;
+
+                    return;
+                }
+
+                records.forEach(record => {
+
+                    const row =
+                        document.createElement('tr');
+
+                    row.innerHTML = `
+                        <td>${record.id ?? ''}</td>
+                        <td>${record.id_rup ?? ''}</td>
+                        <td>${record.nama_pekerjaan ?? ''}</td>
+                        <td>${record.pagu ?? ''}</td>
+                        <td>${record.nama_metode_pengadaan ?? ''}</td>
+                        <td>${record.nama_instansi ?? ''}</td>
+                        <td>${record.tahun_anggaran ?? ''}</td>
+                        <td>${record.created_at_display ?? ''}</td>
+                        <td>
+                            <a href="/records/${record.id}">
+                                Lihat
+                            </a>
+                        </td>
+                    `;
+
+                    recordsBody.appendChild(row);
+
+                });
+
+                // Pagination
+                const pagination =
+                    payload.data.pagination;
+
+                const paginationRow =
+                    document.querySelector('.pagination-row');
+
+                if (paginationRow && pagination) {
+
+                    paginationRow.innerHTML = `
+                        <div class="pagination-info">
+                            Menampilkan
+                            ${pagination.from ?? 0}
+                            sampai
+                            ${pagination.to ?? 0}
+                            dari
+                            ${pagination.total ?? 0}
+                            entri
+                        </div>
+                    `;
+                }
+
+            })
+            .catch(error => {
+                console.error('Filter tanggal gagal:', error);
+            });
+    });
+
+    resetBtn.addEventListener('click', function (event) {
+
+        event.stopPropagation();
+
+        startDate = null;
+        endDate = null;
+
+        rangeText.textContent = 'Pilih tanggal';
+
+        hint.textContent = 'Pilih tanggal mulai';
+
+        updateSelectedDates();
+
+        renderCalendar();
+
+        // Reset tabel
+        window.location.href =
+            "{{ route('dashboard') }}";
+    });
+
+    prevMonth.addEventListener('click', function (event) {
+
+        event.stopPropagation();
+
+        currentDate.setMonth(
+            currentDate.getMonth() - 1
+        );
+
+        renderCalendar();
+    });
+
+    nextMonth.addEventListener('click', function (event) {
+
+        event.stopPropagation();
+
+        currentDate.setMonth(
+            currentDate.getMonth() + 1
+        );
+
+        renderCalendar();
+    });
+
+    document.addEventListener('click', function (event) {
+
+        if (
+            !popup.contains(event.target) &&
+            !trigger.contains(event.target)
+        ) {
+            popup.classList.remove('is-open');
+        }
+
+    });
+
+    updateSelectedDates();
+    renderCalendar();
+
+});
+</script>
