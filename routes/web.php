@@ -18,6 +18,10 @@ Route::middleware('guest')->group(function () {
 // ==========================
 // Authenticated Website
 // ==========================
+// NOTE: To temporarily disable authentication for local testing,
+// you can replace the following line with:
+// Route::group([], function () {
+// and restore to Route::middleware('auth')->group(function () { when done.
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
