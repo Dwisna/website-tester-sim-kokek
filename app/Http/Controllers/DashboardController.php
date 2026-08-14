@@ -68,8 +68,9 @@ class DashboardController extends Controller
             $weeksSeries = $this->buildWeeklySeries();
             $statusBreakdown = $this->buildStatusBreakdown();
             $dashboardSummary = $this->buildDashboardSummary();
+            $latestNotification = SystemNotification::latest('created_at')->first();
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification'));
         } catch (\Throwable $e) {
             Log::error('Dashboard index error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
@@ -83,8 +84,9 @@ class DashboardController extends Controller
             $weeksSeries = [];
             $statusBreakdown = [];
             $dashboardSummary = [];
+            $latestNotification = null;
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'))
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification'))
                 ->with('error_message', 'Terjadi kesalahan saat memuat dashboard: ' . $e->getMessage());
         }
     }
