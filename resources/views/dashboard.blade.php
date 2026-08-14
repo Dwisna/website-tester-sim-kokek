@@ -245,7 +245,7 @@
                             <td>{{ $record->id }}</td>
                             <td>{{ $record->id_rup }}</td>
                             <td>{{ $record->nama_pekerjaan }}</td>
-                            <td>{{ $record->pagu }}</td>
+                            <td> Rp {{ number_format($record->pagu, 0, ',', '.') }}</td>
                             <td>{{ $record->nama_metode_pengadaan }}</td>
                             <td>{{ $record->nama_instansi }}</td>
                             <td>{{ $record->tahun_anggaran }}</td>
@@ -363,6 +363,22 @@
                 },
             },
         });
+        // FORMAT PAGU
+        function formatRupiah(value) {
+            if (value === null || value === undefined || value === '') {
+                return 'Rp 0';
+            }
+
+            const number = Number(String(value).replace(/[^\d.-]/g, ''));
+
+            if (isNaN(number)) {
+                return 'Rp 0';
+            }
+
+            return 'Rp ' + new Intl.NumberFormat('id-ID', {
+                maximumFractionDigits: 0
+            }).format(number);
+        }
 
         // --- Trend mingguan: line chart ---
         new Chart(document.getElementById('weeklyTrendCanvas'), {
@@ -449,7 +465,7 @@
                     <td>${r.id}</td>
                     <td>${r.id_rup ?? ''}</td>
                     <td>${r.nama_pekerjaan ?? ''}</td>
-                    <td>${r.pagu ?? ''}</td>
+                    <td>${formatRupiah(r.pagu)}</td>
                     <td>${r.nama_metode_pengadaan ?? ''}</td>
                     <td>${r.nama_instansi ?? ''}</td>
                     <td>${r.tahun_anggaran ?? ''}</td>
@@ -878,7 +894,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <td>${record.id ?? ''}</td>
                         <td>${record.id_rup ?? ''}</td>
                         <td>${record.nama_pekerjaan ?? ''}</td>
-                        <td>${record.pagu ?? ''}</td>
+                        <td>${formatRupiah(record.pagu)}</td>
                         <td>${record.nama_metode_pengadaan ?? ''}</td>
                         <td>${record.nama_instansi ?? ''}</td>
                         <td>${record.tahun_anggaran ?? ''}</td>
