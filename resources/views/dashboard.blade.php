@@ -598,8 +598,15 @@
             if (perPageVal) params.append('per_page', String(perPageVal));
             if (page && page > 1) params.append('page', page);
 
-            fetch('/api/dashboard?' + params.toString())
-                .then(r => r.json())
+            fetch('/api/dashboard?' + params.toString(), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                .then(r => {
+                    const contentType = r.headers.get('content-type') || '';
+                    if (!r.ok || contentType.indexOf('application/json') === -1) {
+                        // Possibly redirected to login or received HTML response
+                        throw new Error('Unexpected response from server');
+                    }
+                    return r.json();
+                })
                 .then(payload => {
                     const values = payload?.data?.stats ?? [];
                     const cards = document.querySelectorAll('#stats-grid .metric-value');
@@ -882,8 +889,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         params.append('per_page', perPage);
 
-        fetch('/api/dashboard?' + params.toString())
-            .then(response => response.json())
+        fetch('/api/dashboard?' + params.toString(), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(response => {
+                const contentType = response.headers.get('content-type') || '';
+                if (!response.ok || contentType.indexOf('application/json') === -1) {
+                    throw new Error('Unexpected response from server');
+                }
+                return response.json();
+            })
             .then(payload => {
 
                 if (!payload.success) {
