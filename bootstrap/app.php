@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Laravel Sanctum
             'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
             'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
 
         ]);
     })

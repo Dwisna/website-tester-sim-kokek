@@ -38,3 +38,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/api/download', [DashboardController::class, 'download'])->name('rup.download');
     });
 });
+
+// ==========================
+// Admin Management
+// ==========================
+Route::middleware(['auth', 'admin'])
+    ->prefix('admin')
+    ->group(function () {
+        Route::get('/', function () {
+            return 'Admin Panel';
+        })->name('admin.dashboard');
+    });
