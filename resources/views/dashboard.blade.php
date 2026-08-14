@@ -36,14 +36,43 @@
         @php
             $statMeta = [
                 'Total RUP' => ['icon' => 'speedometer', 'subtitle' => 'Seluruh data yang tersimpan'],
+                'Hari Ini' => ['icon' => 'clock', 'subtitle' => 'Ringkasan data'],
+                'Minggu Ini' => ['icon' => 'clock', 'subtitle' => 'Ringkasan data'],
+                'Bulan Ini' => ['icon' => 'clock', 'subtitle' => 'Ringkasan data'],
                 'Tahun Anggaran' => ['icon' => 'clock', 'subtitle' => 'Rekap tahun berjalan'],
                 'Terkirim Penawaran' => ['icon' => 'send', 'subtitle' => 'Status pengiriman aktif'],
                 'Prospek Pekerjaan' => ['icon' => 'message', 'subtitle' => 'Peluang yang sedang dipantau'],
                 'SIRUP' => ['icon' => 'bell', 'subtitle' => 'Sinkronisasi dan publikasi'],
                 'Import Data' => ['icon' => 'download', 'subtitle' => 'Data hasil impor terbaru'],
             ];
+
+            // Ensure primary cards appear first and in fixed order
+            $primaryLabels = ['Total RUP','Hari Ini','Minggu Ini','Bulan Ini'];
+            $primary = [];
+            $others = [];
+            foreach ($stats as $s) {
+                if (in_array($s['label'], $primaryLabels)) {
+                    $primary[$s['label']] = $s;
+                } else {
+                    $others[] = $s;
+                }
+            }
         @endphp
-        @foreach ($stats as $stat)
+
+        @foreach ($primaryLabels as $label)
+            @php($stat = $primary[$label] ?? ['label' => $label, 'value' => 0, 'tone' => 'default'])
+            @php($meta = $statMeta[$stat['label']] ?? ['icon' => 'speedometer', 'subtitle' => 'Ringkasan data'])
+            <div class="card metric-card {{ $stat['tone'] }}">
+                <div class="metric-card-top">
+                    <div class="metric-icon metric-icon-{{ $stat['tone'] }}">@include('components.ui.icon', ['name' => $meta['icon'], 'size' => 18])</div>
+                    <div class="metric-label">{{ $stat['label'] }}</div>
+                </div>
+                <div class="metric-value">{{ $stat['value'] }}</div>
+                <div class="metric-subtitle">{{ $meta['subtitle'] }}</div>
+            </div>
+        @endforeach
+
+        @foreach ($others as $stat)
             @php($meta = $statMeta[$stat['label']] ?? ['icon' => 'speedometer', 'subtitle' => 'Ringkasan data'])
             <div class="card metric-card {{ $stat['tone'] }}">
                 <div class="metric-card-top">
