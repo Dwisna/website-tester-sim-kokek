@@ -12,10 +12,10 @@
         </div>
 
         <div class="sidebar-user">
-            <div class="sidebar-user-avatar">A</div>
+            <div class="sidebar-user-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
             <div class="sidebar-user-copy">
-                <strong>Administrator</strong>
-                <span>System operator</span>
+                <strong>{{ auth()->user()->name }}</strong>
+                <span>{{ auth()->user()->email }}</span>
             </div>
         </div>
 
@@ -63,11 +63,15 @@
                 </a>
                 @include('components.ui.theme-toggle')
                 <div class="topnav-profile">
-                    <div class="topnav-avatar">A</div>
+                    <div class="topnav-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
                     <div class="topnav-profile-copy">
-                        <strong>Administrator</strong>
+                        <strong>{{ auth()->user()->name }}</strong>
                         <span>Active now</span>
                     </div>
+                    <form method="POST" action="{{ route('logout') }}" style="margin-left:10px;">
+                        @csrf
+                        <button type="submit" class="btn-surface btn-surface-compact">Logout</button>
+                    </form>
                 </div>
             </div>
         </header>

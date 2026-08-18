@@ -66,7 +66,8 @@
 
             fetch('/api/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: { 'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Accept': 'application/json' },
                 body: JSON.stringify({ message: text, source: 'dashboard', channel: 'web' })
             })
             .then((response) => response.json())

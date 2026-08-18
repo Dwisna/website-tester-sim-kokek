@@ -37,6 +37,21 @@ class DashboardController extends Controller
             $query->where('tahun_anggaran', $request->tahun_anggaran);
         }
 
+        // Filter berdasarkan tanggal created_at
+        if ($request->filled('start_date')) {
+            if ($request->filled('end_date')) {
+                $query->whereBetween('created_at', [
+                    Carbon::parse($request->start_date)->startOfDay(),
+                    Carbon::parse($request->end_date)->endOfDay(),
+                ]);
+            } else {
+                $query->whereDate(
+                    'created_at',
+                    Carbon::parse($request->start_date)->toDateString()
+                );
+            }
+        }
+
         try {
             $records = $query->orderByDesc('created_at')->paginate(request('per_page', 10))->withQueryString();
             $minYear = RupRecord::whereNotNull('tahun_anggaran')->min('tahun_anggaran');
@@ -53,8 +68,9 @@ class DashboardController extends Controller
             $weeksSeries = $this->buildWeeklySeries();
             $statusBreakdown = $this->buildStatusBreakdown();
             $dashboardSummary = $this->buildDashboardSummary();
+            $latestNotification = SystemNotification::latest('created_at')->first();
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification'));
         } catch (\Throwable $e) {
             Log::error('Dashboard index error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
@@ -68,8 +84,9 @@ class DashboardController extends Controller
             $weeksSeries = [];
             $statusBreakdown = [];
             $dashboardSummary = [];
+            $latestNotification = null;
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'))
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification'))
                 ->with('error_message', 'Terjadi kesalahan saat memuat dashboard: ' . $e->getMessage());
         }
     }
@@ -86,6 +103,8 @@ class DashboardController extends Controller
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|in:10,25,50,100',
             'range' => 'nullable|in:today,week,month,all',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
         try {
             $query = RupRecord::query();
@@ -102,6 +121,25 @@ class DashboardController extends Controller
 
             if ($request->filled('tahun_anggaran')) {
                 $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
+            }
+            // Filter berdasarkan tanggal created_at dari kalender
+            if ($request->filled('start_date')) {
+                $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+
+                if ($request->filled('end_date')) {
+                    $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+
+                    $query->whereBetween('created_at', [
+                        $startDate,
+                        $endDate
+                    ]);
+                } else {
+                    // Jika hanya memilih satu tanggal
+                    $query->whereBetween('created_at', [
+                        $startDate,
+                        $startDate->copy()->endOfDay()
+                    ]);
+                }
             }
 
             // range filter: today/week/month/all
