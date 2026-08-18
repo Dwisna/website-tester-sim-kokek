@@ -18,7 +18,7 @@ class RupRecordSeeder extends Seeder
             $sample[] = [
                 'id_rup' => 'RUP-' . str_pad($i, 3, '0', STR_PAD_LEFT),
                 'nama_pekerjaan' => 'Proyek Pengadaan ' . ($i % 5 === 0 ? 'Sistem' : 'Perangkat'),
-                'pagu' => number_format(rand(500_000_000, 2_500_000_000), 0, ',', '.'),
+                'pagu' => rand(500_000_000, 2_500_000_000),
                 'nama_jenis_pengadaan' => $i % 2 ? 'Barang' : 'Jasa',
                 'nama_jenis_produk_rup' => $i % 3 === 0 ? 'Aplikasi' : 'Infrastruktur',
                 'nama_jenis_usaha' => $i % 4 === 0 ? 'Perusahaan Teknologi' : 'UMKM',
