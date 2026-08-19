@@ -108,7 +108,7 @@
             
             <div class="toolbar-filter date-range-picker">
                 <button type="button" class="date-range-trigger" id="date-range-trigger">
-                    <span class="date-range-icon">@include('components.icon', ['name' => 'calendar', 'size' => 16])</span>
+                    <span class="date-range-icon">📅</span>
                     <span id="date-range-text">Pilih tanggal</span>
                 </button>
 
@@ -193,10 +193,6 @@
 
         </div>
 
-            <!-- Hidden inputs to keep date range state for AJAX requests -->
-            <input type="hidden" id="start-date-input" name="start_date" value="{{ request('start_date') }}" />
-            <input type="hidden" id="end-date-input" name="end_date" value="{{ request('end_date') }}" />
-
             @isset($statuses)
                 <div class="toolbar-filter">
                     <select name="status" class="form-select field-year" aria-label="Status">
@@ -249,7 +245,7 @@
                             <td>{{ $record->id }}</td>
                             <td>{{ $record->id_rup }}</td>
                             <td>{{ $record->nama_pekerjaan }}</td>
-                            <td> Rp {{ number_format((float) preg_replace('/[^0-9.\-]/', '', $record->pagu ?? '0'), 0, ',', '.') }}</td>
+                            <td> Rp {{ number_format($record->pagu, 0, ',', '.') }}</td>
                             <td>{{ $record->nama_metode_pengadaan }}</td>
                             <td>{{ $record->nama_instansi }}</td>
                             <td>{{ $record->tahun_anggaran }}</td>
@@ -576,21 +572,8 @@
             if (perPageVal) params.append('per_page', String(perPageVal));
             if (page && page > 1) params.append('page', page);
 
-            // include explicit date range if set via date-picker
-            const startInput = document.getElementById('start-date-input')?.value || '';
-            const endInput = document.getElementById('end-date-input')?.value || '';
-            if (startInput) params.append('start_date', startInput);
-            if (endInput) params.append('end_date', endInput);
-
-            fetch('/api/dashboard?' + params.toString(), { credentials: 'include' })
-                .then(r => {
-                    if (r.redirected || r.status === 401) {
-                        // session expired or unauthorized — reload to prompt login
-                        window.location.reload();
-                        throw new Error('unauthorized');
-                    }
-                    return r.json();
-                })
+            fetch('/api/dashboard?' + params.toString())
+                .then(r => r.json())
                 .then(payload => {
                     const values = payload?.data?.stats ?? [];
                     const cards = document.querySelectorAll('#stats-grid .metric-value');
@@ -845,12 +828,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         popup.classList.remove('is-open');
 
-        // store to hidden inputs so other filters / AJAX picks it up
-        const startInputEl = document.getElementById('start-date-input');
-        const endInputEl = document.getElementById('end-date-input');
-        if (startInputEl) startInputEl.value = formatApiDate(startDate);
-        if (endInputEl) endInputEl.value = endDate ? formatApiDate(endDate) : '';
-
         // Filter kalender
         const params = new URLSearchParams();
 
@@ -879,14 +856,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         params.append('per_page', perPage);
 
-        fetch('/api/dashboard?' + params.toString(), { credentials: 'include' })
-            .then(response => {
-                if (response.redirected || response.status === 401) {
-                    window.location.reload();
-                    throw new Error('unauthorized');
-                }
-                return response.json();
-            })
+        fetch('/api/dashboard?' + params.toString())
+            .then(response => response.json())
             .then(payload => {
 
                 if (!payload.success) {
@@ -982,13 +953,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         renderCalendar();
 
-        // Reset hidden inputs and reload
-        const startInputEl2 = document.getElementById('start-date-input');
-        const endInputEl2 = document.getElementById('end-date-input');
-        if (startInputEl2) startInputEl2.value = '';
-        if (endInputEl2) endInputEl2.value = '';
-
-        window.location.href = "{{ route('dashboard') }}";
+        // Reset tabel
+        window.location.href =
+            "{{ route('dashboard') }}";
     });
 
     prevMonth.addEventListener('click', function (event) {
@@ -1023,51 +990,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
     });
-
-    // Initialize date-picker from URL query params or existing hidden inputs
-    (function initFromParams() {
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const sParam = urlParams.get('start_date') || document.getElementById('start-date-input')?.value || '';
-            const eParam = urlParams.get('end_date') || document.getElementById('end-date-input')?.value || '';
-
-            if (sParam) {
-                const p = sParam.split('-');
-                if (p.length === 3) {
-                    startDate = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-                }
-            }
-
-            if (eParam) {
-                const p2 = eParam.split('-');
-                if (p2.length === 3) {
-                    endDate = new Date(Number(p2[0]), Number(p2[1]) - 1, Number(p2[2]));
-                }
-            }
-
-            // reflect into UI and hidden inputs
-            if (startDate) {
-                const sEl = document.getElementById('start-date-input');
-                if (sEl && !sEl.value) sEl.value = sParam;
-            }
-            if (endDate) {
-                const eEl = document.getElementById('end-date-input');
-                if (eEl && !eEl.value) eEl.value = eParam;
-            }
-
-            if (startDate && endDate) {
-                rangeText.textContent = `${formatDate(startDate)} - ${formatDate(endDate)}`;
-                hint.textContent = 'Rentang tanggal siap diterapkan';
-            } else if (startDate) {
-                rangeText.textContent = formatDate(startDate);
-                hint.textContent = 'Pilih tanggal selesai (opsional)';
-                // focus calendar month on startDate
-                currentDate = new Date(startDate);
-            }
-        } catch (e) {
-            // ignore parse errors
-        }
-    })();
 
     updateSelectedDates();
     renderCalendar();

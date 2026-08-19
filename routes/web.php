@@ -28,7 +28,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/openclaw', [DashboardController::class, 'openclawPage'])->name('openclaw');
 
     // Endpoint internal dashboard tetap memakai session login.
-    // API eksternal n8n akan dipindahkan ke Sanctum pada Phase 2.
+    
     Route::prefix('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'dashboardApi']);
         Route::match(['get', 'post'], '/chat', [DashboardController::class, 'chatApi']);
