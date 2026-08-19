@@ -1,7 +1,5 @@
 <?php
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 // ==========================
@@ -41,14 +39,3 @@ Route::middleware('auth')->group(function () {
         Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
     });
 });
-
-// ==========================
-// Admin Management
-// ==========================
-Route::middleware(['auth', 'admin'])
-    ->prefix('admin') 
-    ->group(function () {
-        Route::get('/', function () {
-            return 'Admin Panel';
-        })->name('admin.dashboard');
-    });
