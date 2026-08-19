@@ -2,7 +2,12 @@
 // use App\Http\Controllers\RupController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 
+
+
+// Route::post('/login', [AuthController::class, 'apiLogin'])
+   // ->middleware('throttle:login');
 
 // Route::get('/dashboard', [DashboardController::class, 'dashboardApi']);
 // Route::match(['get', 'post'], '/chat', [DashboardController::class, 'chatApi']);
@@ -16,3 +21,5 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'abilities:n8n:import'])->group
 });
 
 Route::post('/n8n/webhook', [DashboardController::class, 'n8nWebhook']);
+
+

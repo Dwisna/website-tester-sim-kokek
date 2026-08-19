@@ -340,6 +340,7 @@ class DashboardController extends Controller
             Log::error('notificationsApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil notifikasi: ',], 500);
         }
+        
     }
 
     /**
@@ -356,6 +357,7 @@ class DashboardController extends Controller
             return view('notifications', compact('notifications'))->with('error_message', 'Terjadi kesalahan saat memuat notifikasi: ' . $e->getMessage());
         }
     }
+    
 
     /**
      * Endpoint untuk menerima webhook dari n8n.
@@ -801,5 +803,26 @@ class DashboardController extends Controller
             new RupExport($request->query('search'), $request->query('tahun_anggaran')),
             'data-rup-' . now()->format('Y-m-d') . '.xlsx'
         );
+    }
+    /**
+     * Ambil info scraping/data terakhir berdasarkan created_at RupRecord paling baru.
+     * Ini yang jadi sumber kebenaran untuk kotak "note" di dashboard.
+     */
+    private function buildLatestScraping(): ?array
+    {
+        $latest = RupRecord::latest('created_at')->first();
+
+        if (!$latest) {
+            return null;
+        }
+
+        return [
+            'title' => 'Data terbaru masuk',
+            'message' => 'Pekerjaan "' . ($latest->nama_pekerjaan ?? '-') . '" baru masuk ke database.',
+            'created_at' => $latest->created_at?->toDateTimeString(),
+            'created_at_display' => $latest->created_at
+                ?->setTimezone('Asia/Jakarta')
+                ->format('d M Y H:i'),
+        ];
     }
 }

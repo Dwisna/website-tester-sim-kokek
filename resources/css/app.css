@@ -1858,7 +1858,7 @@ body.dark select option {
     padding: 16px 18px;
     border: 1px solid var(--border, #e2e8f0);
     border-radius: 14px;
-    background: var(--card, #ffffff);
+    background: var(--card, #c1f6bf);
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
 }
 .scraping-note-content {
