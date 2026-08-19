@@ -24,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+       // 'expired_at',  //nambah ini 18 agus
     ];
 
     /**
@@ -46,6 +47,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            //'expired_at' => 'datetime',  //nambah ini 18 agus
         ];
     }
 }

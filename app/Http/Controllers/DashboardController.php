@@ -240,6 +240,35 @@ class DashboardController extends Controller
     }
 
     /**
+     * API untuk menampilkan detail satu record RUP (Dipanggil oleh Project 2).
+     */
+    public function showRecordApi($id): JsonResponse
+    {
+        try {
+            $record = RupRecord::where('id', $id)
+                ->orWhere('id_rup', $id)
+                ->first();
+            
+            if (!$record) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Data tidak ditemukan di database server'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $record
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('showRecordApi error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'message' => 'Terjadi kesalahan pada server'
+            ], 500);
+        }
+    }
+    /**
      * Halaman mock OpenClaw untuk demo integrasi scraping dan preview data.
      */
     public function openclawPage()
