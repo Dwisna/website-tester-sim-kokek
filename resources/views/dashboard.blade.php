@@ -223,7 +223,7 @@
         </form>
 
         <div class="table-responsive dashboard-table">
-            <div id="dashboard-loading" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);z-index:10;">
+            <div id="dashboard-loading" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;backdrop-filter:blur(2px);z-index:10;">
                 <div class="loader" style="background:rgba(255,255,255,0.9);padding:12px 16px;border-radius:8px;display:flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(0,0,0,0.08);">
                     <div style="width:18px;height:18px;border-radius:50%;border:2px solid #cbd5e1;border-top-color:#2f6fed;animation:spin 0.8s linear infinite"></div>
                     <div style="font-size:13px;color:#334155">Memuat data...</div>
@@ -312,36 +312,39 @@
     </section>
 
     {{-- Latest Scraping Note --}}
-    <section class="scraping-note">
-        <div class="scraping-note-icon">
-            @include('components.icon', ['name' => 'clock', 'size' => 18])
+<section class="scraping-note">
+    <div class="scraping-note-icon">
+        @include('components.icon', ['name' => 'clock', 'size' => 25])
+    </div>
+
+    <div class="scraping-note-content">
+        <div class="scraping-note-title">
+            {{ $latestScraping['title'] ?? 'Belum ada aktivitas scraping' }}
         </div>
 
-        <div class="scraping-note-content">
-            <div class="scraping-note-title">
-                {{ $latestNotification->title ?? 'Belum ada aktivitas scraping' }}
-            </div>
-
-            <div class="scraping-note-message">
-                {{ $latestNotification->message ?? 'Belum ada data scraping terbaru.' }}
-            </div>
-
-            @if($latestNotification?->created_at)
-                <div class="scraping-note-time">
-                    Terakhir diperbarui:
-                    {{ $latestNotification->created_at
-                        ->setTimezone('Asia/Jakarta')
-                        ->format('d M Y H:i') }}
-                    WIB
-                </div>
-            @endif
+        <div class="scraping-note-message">
+            {{ $latestScraping['message'] ?? 'Belum ada data scraping terbaru.' }}
         </div>
-        
+
+        @if(!empty($latestScraping['created_at_display']))
+            <div class="scraping-note-time">
+                Terakhir diperbarui:
+                {{ $latestScraping['created_at_display'] }}
+                WIB
+            </div>
+        @endif
+    </div>
     </section>
-
-    <section class="chart-grid">
+        <section class="chart-grid">
         <div class="card chart-card">
-            <h3 class="section-title">Trend Mingguan</h3>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <h3 class="section-title">Trend Mingguan</h3>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <button type="button" id="week-prev" class="btn-surface" style="padding:6px 12px;">‹ Minggu Lalu</button>
+                    <span id="week-label" style="font-size:0.85rem;color:var(--shell-muted);white-space:nowrap;"></span>
+                    <button type="button" id="week-next" class="btn-surface" style="padding:6px 12px;">Minggu Depan ›</button>
+                </div>
+            </div>
             <div class="chart-frame">
                 <canvas id="weeklyTrendCanvas"></canvas>
             </div>
@@ -352,8 +355,24 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
+    // FORMAT PAGU — global scope supaya bisa dipakai script date-range-picker di bawah juga
+    function formatRupiah(value) {
+        if (value === null || value === undefined || value === '') {
+            return 'Rp 0';
+        }
+
+        const number = Number(String(value).replace(/[^\d.-]/g, ''));
+
+        if (isNaN(number)) {
+            return 'Rp 0';
+        }
+
+        return 'Rp ' + new Intl.NumberFormat('id-ID', {
+            maximumFractionDigits: 0
+        }).format(number);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
-        const chartSeriesData    = @json($chartSeries);
         const weeklySeriesData  = @json($weeksSeries);
         const statusBreakdownData = @json($statusBreakdown);
 
@@ -370,50 +389,8 @@
         Chart.defaults.color = palette.text;
         Chart.defaults.font.family = "'Manrope', 'Inter', system-ui, sans-serif";
 
-        // --- OpenClaw Preview: bar chart ---
-        new Chart(document.getElementById('chartSeriesCanvas'), {
-            type: 'bar',
-            data: {
-                labels: chartSeriesData.map(item => item.label),
-                datasets: [{
-                    label: 'Jumlah',
-                    data: chartSeriesData.map(item => item.value ?? item.bar_height),
-                    backgroundColor: palette.primaryFaint,
-                    borderColor: palette.primary,
-                    borderWidth: 2,
-                    borderRadius: 8,
-                    maxBarThickness: 36,
-                }],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true, grid: { color: palette.grid } },
-                },
-            },
-        });
-        // FORMAT PAGU
-        function formatRupiah(value) {
-            if (value === null || value === undefined || value === '') {
-                return 'Rp 0';
-            }
-
-            const number = Number(String(value).replace(/[^\d.-]/g, ''));
-
-            if (isNaN(number)) {
-                return 'Rp 0';
-            }
-
-            return 'Rp ' + new Intl.NumberFormat('id-ID', {
-                maximumFractionDigits: 0
-            }).format(number);
-        }
-
-        // --- Trend mingguan: line chart ---
-        new Chart(document.getElementById('weeklyTrendCanvas'), {
+        // --- Trend mingguan: line chart (satu-satunya instance, dipakai juga oleh navigasi minggu) ---
+        let weeklyChartInstance = new Chart(document.getElementById('weeklyTrendCanvas'), {
             type: 'line',
             data: {
                 labels: weeklySeriesData.map(item => item.day),
@@ -431,28 +408,52 @@
             },
             options: {
                 responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            x: {
-                grid: { display: false }
-            },
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    stepSize: 1,
-                    precision: 0
-                },
-                grid: {
-                    color: palette.grid
-                }
-            },
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: palette.grid } },
                 },
             },
         });
 
+        // --- Navigasi minggu untuk Trend Mingguan ---
+        let currentWeekOffset = 0;
+        const weekLabelEl = document.getElementById('week-label');
+        const weekPrevBtn = document.getElementById('week-prev');
+        const weekNextBtn = document.getElementById('week-next');
+
+        function fetchWeeklyTrend(offset) {
+            fetch('/api/dashboard/weekly-trend?week_offset=' + offset, { credentials: 'include' })
+                .then(r => {
+                    if (r.redirected || r.status === 401) {
+                        window.location.reload();
+                        throw new Error('unauthorized');
+                    }
+                    return r.json();
+                })
+                .then(payload => {
+                    if (!payload.success) return;
+                    const series = payload.data.weekly_series || [];
+
+                    weeklyChartInstance.data.labels = series.map(item => item.day);
+                    weeklyChartInstance.data.datasets[0].data = series.map(item => item.value ?? item.bar_height);
+                    weeklyChartInstance.update();
+
+                    if (weekLabelEl) weekLabelEl.textContent = payload.data.week_label || '';
+                    currentWeekOffset = payload.data.week_offset ?? offset;
+
+                    // disable tombol "Minggu Depan" kalau sudah di minggu ini (offset 0), biar tidak bisa lihat masa depan
+                    if (weekNextBtn) weekNextBtn.disabled = currentWeekOffset >= 0;
+                })
+                .catch(err => console.error('Fetch weekly trend failed', err));
+        }
+
+        weekPrevBtn?.addEventListener('click', () => fetchWeeklyTrend(currentWeekOffset - 1));
+        weekNextBtn?.addEventListener('click', () => fetchWeeklyTrend(currentWeekOffset + 1));
+
+        // load label minggu ini saat pertama kali buka halaman
+        fetchWeeklyTrend(0);
 
         // --- Server-side filtering via AJAX ---
         const searchInput = document.getElementById('dashboard-search');

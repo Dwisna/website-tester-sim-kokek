@@ -31,11 +31,14 @@ Route::middleware('auth')->group(function () {
     // API eksternal n8n akan dipindahkan ke Sanctum pada Phase 2.
     Route::prefix('api')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'dashboardApi']);
+        Route::get('/dashboard/latest-scraping', [DashboardController::class, 'latestScrapingApi']);
+        Route::get('/dashboard/weekly-trend', [DashboardController::class, 'weeklyTrendApi']);
         Route::match(['get', 'post'], '/chat', [DashboardController::class, 'chatApi']);
         Route::get('/history', [DashboardController::class, 'historyApi']);
         Route::get('/download', [DashboardController::class, 'downloadApi']);
         Route::get('/notifications', [DashboardController::class, 'notificationsApi']);
-        Route::get('/api/download', [DashboardController::class, 'download'])->name('rup.download');
+        // Route::get('/api/download', [DashboardController::class, 'download'])->name('rup.download');
+        Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
     });
 });
 

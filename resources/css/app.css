@@ -1866,21 +1866,21 @@ body.dark select option {
 }
 
 .scraping-note-title {
-    font-size: 14px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--text, #0f172a);
     margin-bottom: 4px;
 }
 
 .scraping-note-message {
-    font-size: 13px;
+    font-size: 17px;
     line-height: 1.5;
     color: var(--muted, #64748b);
 }
 
 .scraping-note-time {
     margin-top: 7px;
-    font-size: 12px;
+    font-size: 17px;
     color: var(--muted, #94a3b8);
 }
 
