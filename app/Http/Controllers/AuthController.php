@@ -17,40 +17,31 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    public function login(Request $request, CareerApiClient $api)
-    {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
-
-        $response = $api->postRaw('/login', [
-            'email' => $credentials['email'],
-            'password' => $credentials['password'],
-            'device_name' => 'dashboard-'.$request->ip(),
-        ]);
-
-        if ($response->status() === 401 || $response->status() === 422) {
-            throw ValidationException::withMessages([
-                'email' => 'Email atau password tidak valid.',
+        public function login(Request $request)
+        {
+            $credentials = $request->validate([
+                'email' => ['required', 'email'],
+                'password' => ['required', 'string'],
             ]);
+            //nambah ini 18 agus
+            $user = \App\Models\User::where('email', $request->email)->first();
+
+            if ($user && $user->expired_at && now()->greaterThan($user->expired_at)) {
+                throw ValidationException::withMessages([
+                    'email' => 'Akun Anda sudah tidak aktif.',
+                ]);
+            }
+            //sampai sini
+            if (!Auth::attempt($credentials, $request->boolean('remember'))) {
+                throw ValidationException::withMessages([
+                    'email' => 'Email atau password tidak valid.',
+                ]);
+            }
+
+            $request->session()->regenerate();
+
+            return redirect()->intended(route('dashboard'));
         }
-
-        $response->throw(); // lempar error kalau selain itu (500, dll)
-
-        $data = $response->json();
-
-        // Simpan sesi login berbasis Career API — bukan Auth::attempt() lokal.
-        session([
-            'career_access_token' => $data['access_token'],
-            'career_user' => $data['user'],
-            'career_token_expires_at' => $data['expires_at'] ?? null,
-        ]);
-
-        $request->session()->regenerate();
-
-        return redirect()->intended(route('dashboard'));
-    }
 
     public function logout(Request $request, CareerApiClient $api)
     {

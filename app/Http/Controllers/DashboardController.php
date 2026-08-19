@@ -68,8 +68,9 @@ class DashboardController extends Controller
             $weeksSeries = $this->buildWeeklySeries();
             $statusBreakdown = $this->buildStatusBreakdown();
             $dashboardSummary = $this->buildDashboardSummary();
+            $latestNotification = SystemNotification::latest('created_at')->first();
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'));
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification'));
         } catch (\Throwable $e) {
             Log::error('Dashboard index error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
@@ -83,8 +84,9 @@ class DashboardController extends Controller
             $weeksSeries = [];
             $statusBreakdown = [];
             $dashboardSummary = [];
+            $latestNotification = null;
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary'))
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification'))
                 ->with('error_message', 'Terjadi kesalahan saat memuat dashboard: ' . $e->getMessage());
         }
     }
@@ -219,6 +221,35 @@ class DashboardController extends Controller
     }
 
     /**
+     * API untuk menampilkan detail satu record RUP (Dipanggil oleh Project 2).
+     */
+    public function showRecordApi($id): JsonResponse
+    {
+        try {
+            $record = RupRecord::where('id', $id)
+                ->orWhere('id_rup', $id)
+                ->first();
+            
+            if (!$record) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Data tidak ditemukan di database server'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $record
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('showRecordApi error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'message' => 'Terjadi kesalahan pada server'
+            ], 500);
+        }
+    }
+    /**
      * Halaman mock OpenClaw untuk demo integrasi scraping dan preview data.
      */
     public function openclawPage()
@@ -338,6 +369,7 @@ class DashboardController extends Controller
             Log::error('notificationsApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil notifikasi: ',], 500);
         }
+        
     }
 
     /**
@@ -354,6 +386,7 @@ class DashboardController extends Controller
             return view('notifications', compact('notifications'))->with('error_message', 'Terjadi kesalahan saat memuat notifikasi: ' . $e->getMessage());
         }
     }
+    
 
     /**
      * Endpoint untuk menerima webhook dari n8n.
@@ -799,5 +832,26 @@ class DashboardController extends Controller
             new RupExport($request->query('search'), $request->query('tahun_anggaran')),
             'data-rup-' . now()->format('Y-m-d') . '.xlsx'
         );
+    }
+    /**
+     * Ambil info scraping/data terakhir berdasarkan created_at RupRecord paling baru.
+     * Ini yang jadi sumber kebenaran untuk kotak "note" di dashboard.
+     */
+    private function buildLatestScraping(): ?array
+    {
+        $latest = RupRecord::latest('created_at')->first();
+
+        if (!$latest) {
+            return null;
+        }
+
+        return [
+            'title' => 'Data terbaru masuk',
+            'message' => 'Pekerjaan "' . ($latest->nama_pekerjaan ?? '-') . '" baru masuk ke database.',
+            'created_at' => $latest->created_at?->toDateTimeString(),
+            'created_at_display' => $latest->created_at
+                ?->setTimezone('Asia/Jakarta')
+                ->format('d M Y H:i'),
+        ];
     }
 }
