@@ -244,21 +244,29 @@
                     </tr>
                 </thead>
                 <tbody id="records-body">
-                    @foreach ($records as $record)
-                        <tr data-name="{{ strtolower($record->nama_pekerjaan ?? '') }}" data-id="{{ strtolower($record->id_rup ?? '') }}" data-agency="{{ strtolower($record->nama_instansi ?? '') }}" data-year="{{ $record->tahun_anggaran }}" data-created="{{ $record->created_at?->toIso8601String() }}">
-                            <td>{{ $record->id }}</td>
-                            <td>{{ $record->id_rup }}</td>
-                            <td>{{ $record->nama_pekerjaan }}</td>
-                            <td> Rp {{ number_format((float) preg_replace('/[^0-9.\-]/', '', $record->pagu ?? '0'), 0, ',', '.') }}</td>
-                            <td>{{ $record->nama_metode_pengadaan }}</td>
-                            <td>{{ $record->nama_instansi }}</td>
-                            <td>{{ $record->tahun_anggaran }}</td>
-                            <td>{{ optional($record->created_at)->setTimezone('Asia/Jakarta')->format('d M Y H:i') }}</td>
-                            <td><a href="{{ route('records.show', $record) }}" class="text-decoration-none">Lihat</a></td>
-                        </tr>
-                    @endforeach
-                    <tr id="no-results" style="display: none;"><td colspan="9">Belum ada data yang sesuai filter.</td></tr>
-                </tbody>
+    @foreach ($records as $record)
+        <tr data-name="{{ strtolower($record['nama_pekerjaan'] ?? '') }}" 
+            data-id="{{ strtolower($record['id_rup'] ?? '') }}" 
+            data-agency="{{ strtolower($record['nama_instansi'] ?? '') }}" 
+            data-year="{{ $record['tahun_anggaran'] ?? '' }}" 
+            data-created="{{ isset($record['created_at']) ? \Carbon\Carbon::parse($record['created_at'])->toIso8601String() : '' }}">
+            
+            <td>{{ $record['id'] ?? '' }}</td>
+            <td>{{ $record['id_rup'] ?? '' }}</td>
+            <td>{{ $record['nama_pekerjaan'] ?? '' }}</td>
+            <td> Rp {{ number_format((float) preg_replace('/[^0-9.\-]/', '', $record['pagu'] ?? '0'), 0, ',', '.') }}</td>
+            <td>{{ $record['nama_metode_pengadaan'] ?? '' }}</td>
+            <td>{{ $record['nama_instansi'] ?? '' }}</td>
+            <td>{{ $record['tahun_anggaran'] ?? '' }}</td>
+            
+            {{-- Menggunakan created_at_display yang sudah disiapkan oleh API Server --}}
+            <td>{{ $record['created_at_display'] ?? '' }}</td>
+            
+            {{-- Pastikan route mengirimkan ID, bukan object record --}}
+            <td><a href="{{ route('records.show', $record['id']) }}" class="text-decoration-none">Lihat</a></td>
+        </tr>
+    @endforeach
+</tbody>
             </table>
 
             <div class="pagination-row">
@@ -319,17 +327,17 @@
 
         <div class="scraping-note-content">
             <div class="scraping-note-title">
-                {{ $latestNotification->title ?? 'Belum ada aktivitas scraping' }}
+                {{ $latestNotification['title'] ?? 'Belum ada aktivitas scraping' }}
             </div>
 
             <div class="scraping-note-message">
-                {{ $latestNotification->message ?? 'Belum ada data scraping terbaru.' }}
+                {{ $latestNotification['message'] ?? 'Belum ada data scraping terbaru.' }}
             </div>
 
-            @if($latestNotification?->created_at)
+            @if(!empty($latestNotification['created_at']))
                 <div class="scraping-note-time">
                     Terakhir diperbarui:
-                    {{ $latestNotification->created_at
+                    {{ \Carbon\Carbon::parse($latestNotification['created_at'])
                         ->setTimezone('Asia/Jakarta')
                         ->format('d M Y H:i') }}
                     WIB

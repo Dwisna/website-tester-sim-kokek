@@ -17,24 +17,31 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
-
-        if (!Auth::attempt($credentials, $request->boolean('remember'))) {
-            throw ValidationException::withMessages([
-                'email' => 'Email atau password tidak valid.',
+        public function login(Request $request)
+        {
+            $credentials = $request->validate([
+                'email' => ['required', 'email'],
+                'password' => ['required', 'string'],
             ]);
+            //nambah ini 18 agus
+            $user = \App\Models\User::where('email', $request->email)->first();
+
+            if ($user && $user->expired_at && now()->greaterThan($user->expired_at)) {
+                throw ValidationException::withMessages([
+                    'email' => 'Akun Anda sudah tidak aktif.',
+                ]);
+            }
+            //sampai sini
+            if (!Auth::attempt($credentials, $request->boolean('remember'))) {
+                throw ValidationException::withMessages([
+                    'email' => 'Email atau password tidak valid.',
+                ]);
+            }
+
+            $request->session()->regenerate();
+
+            return redirect()->intended(route('dashboard'));
         }
-
-        // Mencegah session fixation setelah autentikasi berhasil.
-        $request->session()->regenerate();
-
-        return redirect()->intended(route('dashboard'));
-    }
 
     public function logout(Request $request)
     {
