@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TokenController;
 use app\Http\Middleware\ValidateApplicationHeader;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 
 // publik (tanpa token)
 Route::post('/service/token', [TokenController::class, 'issueToken']);

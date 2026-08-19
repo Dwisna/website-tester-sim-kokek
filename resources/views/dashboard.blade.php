@@ -344,6 +344,7 @@
                 </div>
             @endif
         </div>
+        
     </section>
 
     <section class="chart-grid">
