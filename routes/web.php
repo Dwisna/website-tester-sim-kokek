@@ -43,7 +43,7 @@ Route::middleware('auth')->group(function () {
 // Admin Management
 // ==========================
 Route::middleware(['auth', 'admin'])
-    ->prefix('admin')
+    ->prefix('admin') 
     ->group(function () {
         Route::get('/', function () {
             return 'Admin Panel';
