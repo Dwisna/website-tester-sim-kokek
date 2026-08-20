@@ -262,6 +262,7 @@
             <td><a href="{{ route('records.show', $record['id']) }}" class="text-decoration-none">Lihat</a></td>
         </tr>
     @endforeach
+    <tr id="no-results" style="display: none;"><td colspan="9">Belum ada data yang sesuai filter.</td></tr>
 </tbody>
             </table>
 
@@ -485,10 +486,10 @@
         function renderRecords(records) {
             recordsBody.innerHTML = '';
             if (!records || records.length === 0) {
-                noResults.style.display = '';
+                if (noResults) noResults.style.display = '';
                 return;
             }
-            noResults.style.display = 'none';
+            if (noResults) noResults.style.display = 'none';
             for (const r of records) {
                 const tr = document.createElement('tr');
                 tr.setAttribute('data-name', (r.nama_pekerjaan || '').toLowerCase());
