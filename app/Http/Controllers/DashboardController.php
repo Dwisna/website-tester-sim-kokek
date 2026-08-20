@@ -216,63 +216,32 @@ class DashboardController extends Controller
     }
 
     /**
-     * Menampilkan halaman detail untuk satu record RUP.
+     * API untuk menampilkan detail satu record RUP (Dipanggil oleh Project 2).
      */
-    public function showRecord(RupRecord $record)
-    {
-        return view('record-detail', compact('record'));
-    }
-
-    /**
-     * Halaman mock OpenClaw untuk demo integrasi scraping dan preview data.
-     */
-    public function openclawPage()
-    {
-        $lastRecord = RupRecord::latest('created_at')->first();
-        $mockData = [
-            'status' => RupRecord::count() ? 'Connected • data ready' : 'Connected • no data',
-            'last_sync' => $lastRecord ? $lastRecord->created_at->format('d M Y, H:i') : now()->format('d M Y, H:i'),
-            'items' => RupRecord::count(),
-            'summary' => 'Data RUP diambil langsung dari tabel utama, siap dikirim ke n8n dan diproses lebih lanjut.',
-        ];
-
-        $chatMessages = [
-            ['role' => 'assistant', 'text' => 'Halo! Saya OpenClaw mock. Silakan tanyakan mengenai data RUP atau status import.'],
-            ['role' => 'user', 'text' => 'Tampilkan ringkasan data terbaru.'],
-        ];
-
-        return view('openclaw', compact('mockData', 'chatMessages'));
-    }
-
-    /**
-     * Endpoint API sederhana untuk chat demo.
-     * Menerima pesan dan mengembalikan balasan teks (mock).
-     */
-    public function chatApi(Request $request): JsonResponse
-    {
-        $message = $request->input('message', 'Halo');
-        $responseText = $this->buildChatResponse($message);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'message' => $responseText,
-            ],
-        ]);
-    }
-
-    /**
-     * Halaman history yang menampilkan log webhook n8n terbaru.
-     */
-    public function historyPage()
+    public function showRecordApi($id): JsonResponse
     {
         try {
-            $history = N8nWebhookLog::latest('created_at')->take(20)->get();
-            return view('history', compact('history'));
+            $record = RupRecord::where('id', $id)
+                ->orWhere('id_rup', $id)
+                ->first();
+
+            if (!$record) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data tidak ditemukan di database server'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $record
+            ]);
         } catch (\Throwable $e) {
-            Log::error('historyPage error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            $history = collect();
-            return view('history', compact('history'))->with('error_message', 'Terjadi kesalahan saat memuat history: ' . $e->getMessage());
+            Log::error('showRecordApi error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan pada server'
+            ], 500);
         }
     }
 
@@ -298,21 +267,6 @@ class DashboardController extends Controller
             Log::error('historyApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil history: ',], 500);
         }
-    }
-
-    /**
-     * API placeholder untuk mendownload/menyiapkan file export dashboard.
-     */
-    public function downloadApi(): JsonResponse
-    {
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'file' => 'dashboard-export.xlsx',
-                'url' => '/api/download/preview',
-                'message' => 'File siap diunduh setelah diproses.',
-            ],
-        ]);
     }
 
     /**
@@ -342,21 +296,6 @@ class DashboardController extends Controller
         } catch (\Throwable $e) {
             Log::error('notificationsApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil notifikasi: ',], 500);
-        }
-    }
-
-    /**
-     * Halaman notifikasi untuk melihat daftar notifikasi sistem.
-     */
-    public function notificationsPage()
-    {
-        try {
-            $notifications = SystemNotification::latest('created_at')->take(20)->get();
-            return view('notifications', compact('notifications'));
-        } catch (\Throwable $e) {
-            Log::error('notificationsPage error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            $notifications = collect();
-            return view('notifications', compact('notifications'))->with('error_message', 'Terjadi kesalahan saat memuat notifikasi: ' . $e->getMessage());
         }
     }
 
@@ -768,34 +707,6 @@ class DashboardController extends Controller
     private function buildDashboardSummary(): array
     {
         return app(SirupRepository::class)->summary();
-    }
-
-    private function buildChatResponse(string $message): string
-    {
-        $messageLower = strtolower($message);
-
-        if (str_contains($messageLower, 'ringkas')) {
-            return 'Saat ini terdapat ' . RupRecord::count() . ' record dalam database Anda. Data terbaru muncul di dashboard tabel.';
-        }
-
-        if (str_contains($messageLower, 'instansi')) {
-            $top = RupRecord::selectRaw('nama_instansi, count(*) as total')
-                ->groupBy('nama_instansi')
-                ->orderByDesc('total')
-                ->first();
-
-            return $top
-                ? 'Instansi dengan item terbanyak adalah ' . $top->nama_instansi . ' dengan ' . $top->total . ' record.'
-                : 'Data instansi belum tersedia.';
-        }
-
-        if (str_contains($messageLower, 'trend')) {
-            $thisYear = (string) date('Y');
-            $countThisYear = RupRecord::where('tahun_anggaran', $thisYear)->count();
-            return 'Tren saat ini menunjukkan ' . $countThisYear . ' RUP untuk tahun anggaran ' . $thisYear . ', dengan aktivitas tertinggi pada kuartal terakhir.';
-        }
-
-        return 'Ini adalah respons OpenClaw mock. Silakan beri perintah seperti "Ringkas data terbaru" atau "Tampilkan status import".';
     }
 
     public function download(Request $request)

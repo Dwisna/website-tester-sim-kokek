@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\RupRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -8,71 +7,43 @@ class DashboardApiTest extends \Tests\TestCase
 {
     use RefreshDatabase;
 
-    public function test_dashboard_page_requires_authentication(): void
+    public function test_root_health_endpoint_is_available(): void
     {
         $response = $this->get('/');
 
-        $response->assertRedirect('/login');
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'API Server is running');
     }
 
-    public function test_dashboard_page_renders_professional_overview(): void
+    public function test_dashboard_api_requires_authentication(): void
     {
-        $this->actingAs(User::factory()->create());
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
-        $response->assertSee('Dashboard');
-        $response->assertSee('RUP Intelligence');
-    }
-
-    public function test_dashboard_api_returns_summary_payload(): void
-    {
-        $this->actingAs(User::factory()->create());
         $response = $this->getJson('/api/dashboard');
+
+        $response->assertStatus(401);
+    }
+
+    public function test_dashboard_api_returns_summary_payload_for_authenticated_client(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/dashboard');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
                 'success',
                 'data' => [
                     'stats',
-                    'recent_records',
+                    'summary',
+                    'records',
+                    'pagination',
                     'chart_series',
+                    'weekly_series',
+                    'status_breakdown',
+                    'unread_notifications',
                 ],
             ]);
-    }
-
-    public function test_record_detail_page_renders(): void
-    {
-        $record = RupRecord::create([
-            'nama_pekerjaan' => 'Detail test project',
-            'nama_instansi' => 'Instansi demo',
-            'tahun_anggaran' => '2026',
-            'keterangan' => 'sample detail',
-        ]);
-
-        $this->actingAs(User::factory()->create());
-        $response = $this->get('/records/'.$record->id);
-
-        $response->assertStatus(200)
-            ->assertSee('Detail record');
-    }
-
-    public function test_openclaw_preview_page_renders(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $response = $this->get('/openclaw');
-
-        $response->assertStatus(200)
-            ->assertSee('OpenClaw');
-    }
-
-    public function test_history_page_renders(): void
-    {
-        $this->actingAs(User::factory()->create());
-        $response = $this->get('/history');
-
-        $response->assertStatus(200)
-            ->assertSee('History');
     }
 
     public function test_n8n_webhook_accepts_payload_and_persists_log(): void

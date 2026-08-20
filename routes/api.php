@@ -1,18 +1,29 @@
 <?php
 // use App\Http\Controllers\RupController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\TokenController;
 use Illuminate\Support\Facades\Route;
 
-
-// Route::get('/dashboard', [DashboardController::class, 'dashboardApi']);
-// Route::match(['get', 'post'], '/chat', [DashboardController::class, 'chatApi']);
-// Route::get('/history', [DashboardController::class, 'historyApi']);
-// Route::get('/download', [DashboardController::class, 'downloadApi']);
-// Route::get('/notifications', [DashboardController::class, 'notificationsApi']);
-// Route::get('/api/download', [DashboardController::class, 'download'])->name('rup.download');
-Route::prefix('v1')->middleware(['auth:sanctum', 'abilities:n8n:import'])->group(function () {
-    Route::post('/n8n/import', [DashboardController::class, 'n8nImport'])
-        ->name('api.v1.n8n.import');
-});
-
+// publik (tanpa token)
+Route::post('/service/token', [TokenController::class, 'issueToken']);
 Route::post('/n8n/webhook', [DashboardController::class, 'n8nWebhook']);
+
+// Pakai Sanctum
+Route::middleware('auth:sanctum')->group(function () {
+    
+    // 1. Dashboard & List Data RUP (API)
+    Route::get('/dashboard', [DashboardController::class, 'dashboardApi']);
+    
+    // 2. Detail Record
+    Route::get('/records/{id}', [DashboardController::class, 'showRecordApi'])->name('records.show');
+    
+    // 3. Post Import Data (dari n8n / client)
+    Route::post('/n8n/import', [DashboardController::class, 'n8nImport']);
+    
+    // 4. Log Webhook, Notifikasi, dan Demo Chat
+    Route::get('/history', [DashboardController::class, 'historyApi']);
+    Route::get('/notifications', [DashboardController::class, 'notificationsApi']);
+    
+    // 5. Download Excel
+    Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
+});
