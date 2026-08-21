@@ -66,7 +66,7 @@
                 <a href="{{ url()->full() }}" class="btn-surface">
                 @include('components.icon', ['name' => 'clock', 'size' => 16]) Refresh
             </a>
-                <a href="{{ route('rup.download', request()->query()) }}" class="btn-surface">
+                <a href="{{ route('rup.download') }}" id="downloadExcelBtn" class="btn-surface">
                     @include('components.icon', ['name' => 'download', 'size' => 16]) Download Excel
                 </a>
             </div>
@@ -377,6 +377,28 @@
         }).format(number);
     }
 
+    // URL dasar untuk Download Excel + state filter aktif — global scope
+    // supaya bisa diakses & diupdate baik dari script filter utama
+    // maupun dari script date-range-picker di bawah.
+    const downloadBaseUrl = "{{ route('rup.download') }}";
+    window.__rupFilters = { search: '', tahun_anggaran: '', range: 'all', start_date: '', end_date: '' };
+
+    function updateDownloadLink() {
+        const params = new URLSearchParams();
+        const f = window.__rupFilters;
+        if (f.search) params.append('search', f.search);
+        if (f.tahun_anggaran) params.append('tahun_anggaran', f.tahun_anggaran);
+        if (f.range && f.range !== 'all') params.append('range', f.range);
+        if (f.start_date) params.append('start_date', f.start_date);
+        if (f.end_date) params.append('end_date', f.end_date);
+
+        const btn = document.getElementById('downloadExcelBtn');
+        if (btn) {
+            const qs = params.toString();
+            btn.href = downloadBaseUrl + (qs ? ('?' + qs) : '');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const weeklySeriesData  = @json($weeksSeries);
         const statusBreakdownData = @json($statusBreakdown);
@@ -609,6 +631,12 @@
             const perPageVal = Number(perPageSelect?.value || 10);
             if (perPageVal) params.append('per_page', String(perPageVal));
             if (page && page > 1) params.append('page', page);
+
+            // Sinkronkan state filter global + update href tombol Download Excel
+            window.__rupFilters.search = q;
+            window.__rupFilters.tahun_anggaran = y;
+            window.__rupFilters.range = range;
+            updateDownloadLink();
 
             fetch('/api/dashboard?' + params.toString())
                 .then(r => r.json())
@@ -894,6 +922,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         params.append('per_page', perPage);
 
+        // Sinkronkan state filter global (tanggal) + update href tombol Download Excel
+        window.__rupFilters.start_date = formatApiDate(startDate);
+        window.__rupFilters.end_date = endDate ? formatApiDate(endDate) : '';
+        updateDownloadLink();
+
         fetch('/api/dashboard?' + params.toString())
             .then(response => response.json())
             .then(payload => {
@@ -990,6 +1023,11 @@ document.addEventListener('DOMContentLoaded', function () {
         updateSelectedDates();
 
         renderCalendar();
+
+        // Reset state filter tanggal global + update href tombol Download Excel
+        window.__rupFilters.start_date = '';
+        window.__rupFilters.end_date = '';
+        updateDownloadLink();
 
         // Reset tabel
         window.location.href =

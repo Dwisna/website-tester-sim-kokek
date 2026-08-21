@@ -835,12 +835,18 @@ class DashboardController extends Controller
     }
 
     public function download(Request $request)
-    {
-        return Excel::download(
-            new RupExport($request->query('search'), $request->query('tahun_anggaran')),
-            'data-rup-' . now()->format('Y-m-d') . '.xlsx'
-        );
-    }
+{
+    return Excel::download(
+        new RupExport(
+            $request->query('search'),
+            $request->query('tahun_anggaran'),
+            $request->query('range'),
+            $request->query('start_date'),
+            $request->query('end_date'),
+        ),
+        'data-rup-' . now()->format('Y-m-d') . '.xlsx'
+    );
+}
 
     /**
      * Ambil info scraping/data terakhir berdasarkan created_at RupRecord paling baru.

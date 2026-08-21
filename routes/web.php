@@ -7,18 +7,18 @@ use App\Http\Controllers\DashboardController;
 // ==========================
 // Website Authentication
 // ==========================
-Route::middleware('guest')->group(function () {
+// Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 
     Route::post('/login', [AuthController::class, 'login'])
         ->middleware('throttle:login')
         ->name('login.store');
-});
+// });
 
 // ==========================
 // Authenticated Website
 // ==========================
-Route::middleware('auth')->group(function () {
+// Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -40,4 +40,4 @@ Route::middleware('auth')->group(function () {
         // Route::get('/api/download', [DashboardController::class, 'download'])->name('rup.download');
         Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
     });
-});
+// });

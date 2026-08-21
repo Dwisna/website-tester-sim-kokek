@@ -11,7 +11,7 @@ Route::post('/service/token', [TokenController::class, 'issueToken']);
 Route::post('/n8n/webhook', [DashboardController::class, 'n8nWebhook']);
 
 // Pakai Scantum
-Route::middleware('auth:sanctum, ValidateApplicationHeader::class')->group(function () {
+// Route::middleware('auth:sanctum, ValidateApplicationHeader::class')->group(function () {
     
     // 1. Dashboard & List Data RUP
     Route::get('/dashboard', [DashboardController::class, 'dashboardApi']);
@@ -28,4 +28,4 @@ Route::middleware('auth:sanctum, ValidateApplicationHeader::class')->group(funct
     
     // 5. Download Excel
     Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
-});
+// });
