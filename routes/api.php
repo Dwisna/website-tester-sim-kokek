@@ -14,6 +14,9 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // 1. Dashboard & List Data RUP (API)
     Route::get('/dashboard', [DashboardController::class, 'dashboardApi']);
+
+    Route::get('/weekly-trend', [DashboardController::class, 'weeklyTrendApi']);
+    Route::get('/latest-scraping', [DashboardController::class, 'latestScrapingApi']);
     
     // 2. Detail Record
     Route::get('/records/{id}', [DashboardController::class, 'showRecordApi'])->name('records.show');

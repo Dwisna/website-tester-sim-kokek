@@ -20,8 +20,6 @@ class DashboardController extends Controller
 {
     /**
      * Halaman utama dashboard.
-     *
-     * Menampilkan statistik ringkas, daftar RUP, dan filter tahun.
      */
     public function index(Request $request)
     {
@@ -37,7 +35,6 @@ class DashboardController extends Controller
             $query->where('tahun_anggaran', $request->tahun_anggaran);
         }
 
-        // Filter berdasarkan tanggal created_at
         if ($request->filled('start_date')) {
             if ($request->filled('end_date')) {
                 $query->whereBetween('created_at', [
@@ -45,10 +42,7 @@ class DashboardController extends Controller
                     Carbon::parse($request->end_date)->endOfDay(),
                 ]);
             } else {
-                $query->whereDate(
-                    'created_at',
-                    Carbon::parse($request->start_date)->toDateString()
-                );
+                $query->whereDate('created_at', Carbon::parse($request->start_date)->toDateString());
             }
         }
 
@@ -56,13 +50,10 @@ class DashboardController extends Controller
             $records = $query->orderByDesc('created_at')->paginate(request('per_page', 10))->withQueryString();
             $minYear = RupRecord::whereNotNull('tahun_anggaran')->min('tahun_anggaran');
             $maxYear = RupRecord::whereNotNull('tahun_anggaran')->max('tahun_anggaran');
-            // Build descending array of years from DB range; fallback to common range if DB empty
-            if ($minYear !== null && $maxYear !== null && $maxYear >= $minYear) {
-                $years = range((int) $maxYear, (int) $minYear, -1);
-            } elseif ($maxYear !== null) {
-                $years = [(int) $maxYear];
+            if ($minYear && $maxYear) {
+                $years = collect(range($maxYear, $minYear, -1));
             } else {
-                $years = range((int) now()->year, (int) now()->year - 7, -1);
+                $years = collect(range(2028, 2021, -1));
             }
 
             $stats = $this->buildStats();
@@ -97,8 +88,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * API untuk data dashboard (dipanggil oleh frontend untuk update realtime).
-     * Mengembalikan statistik, entri terbaru, dan seri chart.
+     * API untuk data dashboard.
      */
     public function dashboardApi(Request $request): JsonResponse
     {
@@ -111,10 +101,10 @@ class DashboardController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
+
         try {
             $query = RupRecord::query();
 
-            // search across nama_pekerjaan, nama_instansi, id_rup
             if ($request->filled('search')) {
                 $q = $request->input('search');
                 $query->where(function ($sub) use ($q) {
@@ -127,27 +117,18 @@ class DashboardController extends Controller
             if ($request->filled('tahun_anggaran')) {
                 $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
             }
-            // Filter berdasarkan tanggal created_at dari kalender
+
             if ($request->filled('start_date')) {
                 $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
 
                 if ($request->filled('end_date')) {
                     $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
-
-                    $query->whereBetween('created_at', [
-                        $startDate,
-                        $endDate
-                    ]);
+                    $query->whereBetween('created_at', [$startDate, $endDate]);
                 } else {
-                    // Jika hanya memilih satu tanggal
-                    $query->whereBetween('created_at', [
-                        $startDate,
-                        $startDate->copy()->endOfDay()
-                    ]);
+                    $query->whereBetween('created_at', [$startDate, $startDate->copy()->endOfDay()]);
                 }
             }
 
-            // range filter: today/week/month/all
             $range = $request->input('range', 'all');
             if (in_array($range, ['today', 'week', 'month'], true)) {
                 $now = now();
@@ -206,50 +187,116 @@ class DashboardController extends Controller
                     'weekly_series' => $this->buildWeeklySeries(),
                     'status_breakdown' => $this->buildStatusBreakdown(),
                     'unread_notifications' => SystemNotification::where('is_read', 0)->count(),
+                    'latest_scraping' => $this->buildLatestScraping(),
                 ],
             ]);
         } catch (\Throwable $e) {
             Log::error('dashboardApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan saat mengambil data dashboard: ',
+                'message' => 'Terjadi kesalahan saat mengambil data dashboard.',
             ], 500);
         }
     }
 
     /**
-     * API untuk menampilkan detail satu record RUP (Dipanggil oleh Project 2).
+     * API Polling status scraping terbaru
      */
-    public function showRecordApi($id): JsonResponse
+    public function latestScrapingApi(): JsonResponse
     {
         try {
-            $record = RupRecord::where('id', $id)
-                ->orWhere('id_rup', $id)
-                ->first();
+            return response()->json([
+                'success' => true,
+                'data' => $this->buildLatestScraping(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('latestScrapingApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Gagal mengambil data terbaru.'], 500);
+        }
+    }
 
-            if (!$record) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Data tidak ditemukan di database server'
-                ], 404);
-            }
+    /**
+     * API Navigasi Trend Mingguan
+     */
+    public function weeklyTrendApi(Request $request): JsonResponse
+    {
+        try {
+            $weekOffset = (int) $request->input('week_offset', 0);
+            $startOfWeek = now()->startOfWeek()->addWeeks($weekOffset);
+            $endOfWeek = $startOfWeek->copy()->endOfWeek();
 
             return response()->json([
                 'success' => true,
-                'data' => $record
+                'data' => [
+                    'weekly_series' => $this->buildWeeklySeries($weekOffset),
+                    'week_label' => $startOfWeek->locale('id')->isoFormat('D MMM') . ' - ' . $endOfWeek->locale('id')->isoFormat('D MMM YYYY'),
+                    'week_offset' => $weekOffset,
+                ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('showRecordApi error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan pada server'
-            ], 500);
+            Log::error('weeklyTrendApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Gagal mengambil data trend mingguan.'], 500);
         }
     }
 
-    /**
-     * API yang mengembalikan ringkasan history untuk konsumsi frontend.
-     */
+    public function showRecord(RupRecord $record)
+    {
+        return view('record-detail', compact('record'));
+    }
+
+    public function showRecordApi($id): JsonResponse
+    {
+        try {
+            $record = RupRecord::where('id', $id)->orWhere('id_rup', $id)->first();
+            
+            if (!$record) {
+                return response()->json(['success' => false, 'message' => 'Data tidak ditemukan di database server'], 404);
+            }
+
+            return response()->json(['success' => true, 'data' => $record]);
+        } catch (\Throwable $e) {
+            Log::error('showRecordApi error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan pada server'], 500);
+        }
+    }
+
+    public function openclawPage()
+    {
+        $lastRecord = RupRecord::latest('created_at')->first();
+        $mockData = [
+            'status' => RupRecord::count() ? 'Connected • data ready' : 'Connected • no data',
+            'last_sync' => $lastRecord ? $lastRecord->created_at->format('d M Y, H:i') : now()->format('d M Y, H:i'),
+            'items' => RupRecord::count(),
+            'summary' => 'Data RUP diambil langsung dari tabel utama, siap dikirim ke n8n dan diproses lebih lanjut.',
+        ];
+
+        $chatMessages = [
+            ['role' => 'assistant', 'text' => 'Halo! Saya OpenClaw mock. Silakan tanyakan mengenai data RUP atau status import.'],
+            ['role' => 'user', 'text' => 'Tampilkan ringkasan data terbaru.'],
+        ];
+
+        return view('openclaw', compact('mockData', 'chatMessages'));
+    }
+
+    public function chatApi(Request $request): JsonResponse
+    {
+        $message = $request->input('message', 'Halo');
+        $responseText = $this->buildChatResponse($message);
+
+        return response()->json(['success' => true, 'data' => ['message' => $responseText]]);
+    }
+
+    public function historyPage()
+    {
+        try {
+            $history = N8nWebhookLog::latest('created_at')->take(20)->get();
+            return view('history', compact('history'));
+        } catch (\Throwable $e) {
+            Log::error('historyPage error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return view('history', ['history' => collect()])->with('error_message', 'Terjadi kesalahan saat memuat history: ' . $e->getMessage());
+        }
+    }
+
     public function historyApi(): JsonResponse
     {
         try {
@@ -261,19 +308,25 @@ class DashboardController extends Controller
                 ];
             });
 
-            return response()->json([
-                'success' => true,
-                'data' => $history,
-            ]);
+            return response()->json(['success' => true, 'data' => $history]);
         } catch (\Throwable $e) {
             Log::error('historyApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil history: ',], 500);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil history.'], 500);
         }
     }
 
-    /**
-     * API yang mengembalikan daftar notifikasi sistem terbaru.
-     */
+    public function downloadApi(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'file' => 'dashboard-export.xlsx',
+                'url' => '/api/download/preview',
+                'message' => 'File siap diunduh setelah diproses.',
+            ],
+        ]);
+    }
+
     public function notificationsApi(): JsonResponse
     {
         try {
@@ -291,20 +344,24 @@ class DashboardController extends Controller
                 ];
             });
 
-            return response()->json([
-                'success' => true,
-                'data' => $notifications,
-            ]);
+            return response()->json(['success' => true, 'data' => $notifications]);
         } catch (\Throwable $e) {
             Log::error('notificationsApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil notifikasi: ',], 500);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat mengambil notifikasi.'], 500);
         }
     }
 
-    /**
-     * Endpoint untuk menerima webhook dari n8n.
-     * Mencatat payload ke log dan membuat SystemNotification.
-     */
+    public function notificationsPage()
+    {
+        try {
+            $notifications = SystemNotification::latest('created_at')->take(20)->get();
+            return view('notifications', compact('notifications'));
+        } catch (\Throwable $e) {
+            Log::error('notificationsPage error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return view('notifications', ['notifications' => collect()])->with('error_message', 'Terjadi kesalahan saat memuat notifikasi: ' . $e->getMessage());
+        }
+    }
+
     public function n8nWebhook(Request $request): JsonResponse
     {
         try {
@@ -323,12 +380,10 @@ class DashboardController extends Controller
                 'customer' => $customer,
                 'status' => 'accepted',
             ]);
-            $notification = SystemNotification::where('source', $payload['source'] ?? 'n8n')
-                ->latest()
-                ->first();
+
+            $notification = SystemNotification::where('source', $payload['source'] ?? 'n8n')->latest()->first();
 
             if ($notification) {
-                // Update notifikasi yang sudah ada
                 $notification->update([
                     'title' => $payload['title'] ?? 'Sinkronisasi Data',
                     'message' => $message,
@@ -339,7 +394,6 @@ class DashboardController extends Controller
                     'is_read' => false,
                 ]);
             } else {
-                // Buat notifikasi pertama
                 SystemNotification::create([
                     'title' => $payload['title'] ?? 'Sinkronisasi Data',
                     'message' => $message,
@@ -356,56 +410,30 @@ class DashboardController extends Controller
                 'success' => true,
                 'data' => [
                     'status' => 'accepted',
-                    'message' => 'Webhook diterima dan disimpan sebelum diproses lebih lanjut.',
+                    'message' => 'Webhook diterima dan disimpan.',
                     'event' => $event,
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('n8nWebhook error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString(), 'payload' => $request->all()]);
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat memproses webhook: ' . $e->getMessage()], 500);
+            Log::error('n8nWebhook error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat memproses webhook.'], 500);
         }
     }
 
-    /**
-     * Endpoint utama untuk n8n inject data RUP ke database.
-     *
-     * Body JSON:
-     * {
-     *   "source": "n8n",
-     *   "event": "n8n_import",
-     *   "records": [ { "id_rup": "...", "nama_pekerjaan": "...", ... } ]
-     * }
-     *
-     * Atau kirim file (multipart/form-data) di field "file" (.json / .csv)
-     */
-    /**
-     * Memproses import data RUP dari n8n atau upload file.
-     *
-     * Fungsionalitas:
-     * - Normalisasi field
-     * - Deteksi duplikat (id_rup atau nama+instansi+tahun)
-     * - Update / create record sesuai kondisi
-     * - Dibungkus dalam transaksi DB untuk atomicitas
-     */
     public function n8nImport(Request $request): JsonResponse
     {
         try {
             if ($request->hasFile('file')) {
-                $request->validate([
-                    'file' => 'file|mimes:json,csv,txt|max:5120', // max 5MB
-                ]);
+                $request->validate(['file' => 'file|mimes:json,csv,txt|max:5120']);
             }
             $payload = $request->all();
             $recordPayload = $payload['records'] ?? null;
 
-            // Kalau records dikirim sebagai JSON string (bukan array), decode dulu
             if (is_string($recordPayload)) {
                 $decoded = json_decode($recordPayload, true);
                 $recordPayload = is_array($decoded) ? $decoded : [];
             }
 
-            // Kalau field "records" tidak dikirim sama sekali, tapi payload
-            // punya "id_rup" langsung di root, anggap itu 1 record tunggal (flat object).
             if ($recordPayload === null && isset($payload['id_rup'])) {
                 $recordPayload = [$payload];
             }
@@ -419,7 +447,7 @@ class DashboardController extends Controller
             if (!is_array($recordPayload) || count($recordPayload) === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payload tidak berisi data RUP untuk diimpor. Pastikan mengirim field "records" berupa array of object.',
+                    'message' => 'Payload tidak berisi data RUP untuk diimpor.',
                 ], 422);
             }
 
@@ -428,76 +456,62 @@ class DashboardController extends Controller
             $skipped = 0;
             $errors = [];
 
-            try {
-                foreach ($recordPayload as $i => $recordData) {
-                    try {
-                        if (!is_array($recordData)) {
-                            $skipped++;
-                            $errors[] = "Index {$i}: data bukan object/array, dilewati.";
-                            continue;
-                        }
-
-                        $normalized = $this->normalizeRupData($recordData);
-
-                        // Validasi minimal: harus ada id_rup atau (nama_pekerjaan + nama_instansi)
-                        if (empty($normalized['id_rup']) && (empty($normalized['nama_pekerjaan']) || empty($normalized['nama_instansi']))) {
-                            $skipped++;
-                            $errors[] = "Index {$i}: field 'id_rup' kosong dan tidak cukup data untuk deteksi/penyimpanan, dilewati.";
-                            continue;
-                        }
-
-                        if (!empty($normalized['id_rup'])) {
-                            $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
-                            if ($existingById) {
-                                $existingById->fill($normalized);
-                                if ($existingById->isDirty()) {
-                                    $existingById->save();
-                                    $updated++;
-                                }
-                                continue;
-                            }
-                        }
-
-                        // Jika belum ada id_rup, cek duplikat berdasar nama+instansi+tahun
-                        $dupQuery = RupRecord::query();
-                        if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
-                            $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
-                            $namaI = trim(mb_strtolower($normalized['nama_instansi']));
-
-                            $dupQuery->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
-                                ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
-
-                            if (!empty($normalized['tahun_anggaran'])) {
-                                $dupQuery->where('tahun_anggaran', $normalized['tahun_anggaran']);
-                            }
-
-                            if ($dupQuery->exists()) {
-                                $skipped++;
-                                $errors[] = "Index {$i}: menemukan record serupa (nama_instansi/nama_pekerjaan/tahun), dilewati untuk mencegah duplikasi.";
-                                continue;
-                            }
-                        }
-
-                        // Buat record baru
-                        $record = RupRecord::create($normalized);
-                        if ($record) {
-                            $created++;
-                        } else {
-                            $skipped++;
-                            $errors[] = "Index {$i}: gagal membuat record baru.";
-                        }
-                    } catch (\Throwable $e) {
+            foreach ($recordPayload as $i => $recordData) {
+                try {
+                    if (!is_array($recordData)) {
                         $skipped++;
-                        $errors[] = "Index {$i}: {$e->getMessage()}";
-                        Log::warning('n8nImport row failed', ['index' => $i, 'error' => $e->getMessage(), 'payload' => $recordData]);
+                        $errors[] = "Index {$i}: data bukan object/array.";
+                        continue;
                     }
+
+                    $normalized = $this->normalizeRupData($recordData);
+
+                    if (empty($normalized['id_rup']) && (empty($normalized['nama_pekerjaan']) || empty($normalized['nama_instansi']))) {
+                        $skipped++;
+                        $errors[] = "Index {$i}: data tidak lengkap.";
+                        continue;
+                    }
+
+                    if (!empty($normalized['id_rup'])) {
+                        $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
+                        if ($existingById) {
+                            $existingById->fill($normalized);
+                            if ($existingById->isDirty()) {
+                                $existingById->save();
+                                $updated++;
+                            }
+                            continue;
+                        }
+                    }
+
+                    $dupQuery = RupRecord::query();
+                    if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
+                        $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
+                        $namaI = trim(mb_strtolower($normalized['nama_instansi']));
+
+                        $dupQuery->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
+                            ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
+
+                        if (!empty($normalized['tahun_anggaran'])) {
+                            $dupQuery->where('tahun_anggaran', $normalized['tahun_anggaran']);
+                        }
+
+                        if ($dupQuery->exists()) {
+                            $skipped++;
+                            continue;
+                        }
+                    }
+
+                    $record = RupRecord::create($normalized);
+                    if ($record) {
+                        $created++;
+                    } else {
+                        $skipped++;
+                    }
+                } catch (\Throwable $e) {
+                    $skipped++;
+                    $errors[] = "Index {$i}: {$e->getMessage()}";
                 }
-            } catch (\Throwable $e) {
-                Log::error('n8nImport processing failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Terjadi kesalahan saat memproses import: ',
-                ], 500);
             }
 
             $event = $payload['event'] ?? 'n8n_import';
@@ -535,14 +549,8 @@ class DashboardController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('n8nImport error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat memproses import: ' . $e->getMessage(),
-            ], 500);
+            Log::error('n8nImport error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat memproses import.'], 500);
         }
     }
 
@@ -563,7 +571,6 @@ class DashboardController extends Controller
             $result = [];
 
             foreach (array_slice($rows, 1) as $row) {
-                // Lindungi dari baris CSV yang jumlah kolomnya tidak sama dengan header
                 if (count($row) !== count($header)) {
                     continue;
                 }
@@ -576,10 +583,6 @@ class DashboardController extends Controller
         return [];
     }
 
-    /**
-     * Field yang boleh diisi lewat n8n, sesuai $fillable di model RupRecord.
-     * Field boolean (is_*) otomatis dinormalisasi jadi 0/1.
-     */
     private function normalizeRupData(array $record): array
     {
         $model = new RupRecord();
@@ -600,7 +603,6 @@ class DashboardController extends Controller
                 continue;
             }
 
-            // Normalisasi string: trim whitespace
             if (is_string($value)) {
                 $value = trim($value);
             }
@@ -622,7 +624,6 @@ class DashboardController extends Controller
     private function buildStats(): array
     {
         $total = RupRecord::count();
-
         $todayCount = RupRecord::whereDate('created_at', Carbon::today())->count();
 
         $startOfWeek = Carbon::now()->startOfWeek();
@@ -661,14 +662,11 @@ class DashboardController extends Controller
     private function buildWeeklySeries(int $weekOffset = 0): array
     {
         $days = collect();
-
         $startOfWeek = now()->startOfWeek()->addWeeks($weekOffset);
 
         for ($i = 0; $i < 7; $i++) {
             $date = $startOfWeek->copy()->addDays($i);
-
-            $count = RupRecord::whereDate('created_at', $date->toDateString())
-                ->count();
+            $count = RupRecord::whereDate('created_at', $date->toDateString())->count();
 
             $days->push([
                 'day' => $date->locale('id')->isoFormat('ddd'),
@@ -702,6 +700,22 @@ class DashboardController extends Controller
         return app(SirupRepository::class)->summary();
     }
 
+    private function buildChatResponse(string $message): string
+    {
+        $messageLower = strtolower($message);
+
+        if (str_contains($messageLower, 'ringkas')) {
+            return 'Saat ini terdapat ' . RupRecord::count() . ' record dalam database Anda.';
+        }
+
+        if (str_contains($messageLower, 'instansi')) {
+            $top = RupRecord::selectRaw('nama_instansi, count(*) as total')->groupBy('nama_instansi')->orderByDesc('total')->first();
+            return $top ? 'Instansi dengan item terbanyak adalah ' . $top->nama_instansi . ' dengan ' . $top->total . ' record.' : 'Data instansi belum tersedia.';
+        }
+
+        return 'Ini adalah respons OpenClaw mock.';
+    }
+
     public function download(Request $request)
     {
         return Excel::download(
@@ -711,8 +725,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Ambil info scraping/data terakhir berdasarkan created_at RupRecord paling baru.
-     * Ini yang jadi sumber kebenaran untuk kotak "note" di dashboard.
+     * Sumber data untuk kotak note status scraping
      */
     private function buildLatestScraping(): ?array
     {
@@ -726,33 +739,7 @@ class DashboardController extends Controller
             'title' => 'Data terbaru masuk',
             'message' => '',
             'created_at' => $latest->created_at?->toDateTimeString(),
-            'created_at_display' => $latest->created_at
-                ?->setTimezone('Asia/Jakarta')
-                ->format('d M Y H:i'),
+            'created_at_display' => $latest->created_at?->setTimezone('Asia/Jakarta')->format('d M Y H:i'),
         ];
-    }
-
-    /**
-     * API untuk ambil data trend mingguan berdasarkan offset minggu (untuk navigasi chart).
-     */
-    public function weeklyTrendApi(Request $request): JsonResponse
-    {
-        try {
-            $weekOffset = (int) $request->input('week_offset', 0);
-            $startOfWeek = now()->startOfWeek()->addWeeks($weekOffset);
-            $endOfWeek = $startOfWeek->copy()->endOfWeek();
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'weekly_series' => $this->buildWeeklySeries($weekOffset),
-                    'week_label' => $startOfWeek->locale('id')->isoFormat('D MMM') . ' - ' . $endOfWeek->locale('id')->isoFormat('D MMM YYYY'),
-                    'week_offset' => $weekOffset,
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('weeklyTrendApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['success' => false, 'message' => 'Gagal mengambil data trend mingguan.'], 500);
-        }
     }
 }
