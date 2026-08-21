@@ -1,8 +1,9 @@
 <?php
-// use App\Http\Controllers\RupController;
+
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TokenController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 
 // publik (tanpa token)
 Route::post('/service/token', [TokenController::class, 'issueToken']);

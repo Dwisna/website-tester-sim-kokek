@@ -40,4 +40,17 @@ return [
         'pass' => env('DASHBOARD_PASS'),
     ],
 
+    // config/services.php
+    'career_api' => [
+        'base_url' => env('CAREER_API_BASE_URL', 'http://api-server.test/api'),
+        'client_id' => env('CAREER_API_SERVICE_CLIENT_ID'),
+        'client_secret' => env('CAREER_API_SERVICE_CLIENT_SECRET'),
+        'application_token_header' => env(
+            'CAREER_API_APPLICATION_TOKEN_HEADER',
+            'X-Career-Application-Token'
+        ),
+        'timeout' => env('CAREER_API_TIMEOUT', 15),
+        'connect_timeout' => env('CAREER_API_CONNECT_TIMEOUT', 5),
+    ],
+
 ];

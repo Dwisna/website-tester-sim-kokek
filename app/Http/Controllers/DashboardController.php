@@ -72,8 +72,9 @@ class DashboardController extends Controller
             $statusBreakdown = $this->buildStatusBreakdown();
             $dashboardSummary = $this->buildDashboardSummary();
             $latestNotification = SystemNotification::latest('created_at')->first();
+            $latestScraping = $this->buildLatestScraping();
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification'));
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification', 'latestScraping'));
         } catch (\Throwable $e) {
             Log::error('Dashboard index error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
@@ -88,8 +89,9 @@ class DashboardController extends Controller
             $statusBreakdown = [];
             $dashboardSummary = [];
             $latestNotification = null;
+            $latestScraping = null;
 
-            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification'))
+            return view('dashboard', compact('stats', 'records', 'years', 'chartSeries', 'weeksSeries', 'statusBreakdown', 'totalRecords', 'dashboardSummary', 'latestNotification', 'latestScraping'))
                 ->with('error_message', 'Terjadi kesalahan saat memuat dashboard: ' . $e->getMessage());
         }
     }
@@ -349,17 +351,6 @@ class DashboardController extends Controller
                     'is_read' => false,
                 ]);
             }
-
-            // SystemNotification::create([
-            //     'title' => $payload['title'] ?? ucfirst(str_replace('_', ' ', $event)),
-            //     'message' => $message,
-            //     'type' => 'n8n',
-            //     'priority' => $payload['priority'] ?? 'medium',
-            //     'link' => $payload['link'] ?? null,
-            //     'source' => $payload['source'] ?? 'n8n',
-            //     'payload' => $payload,
-            //     'is_read' => false,
-            // ]);
 
             return response()->json([
                 'success' => true,
@@ -667,27 +658,29 @@ class DashboardController extends Controller
             ->all();
     }
 
-    private function buildWeeklySeries(): array {
-    $days = collect();
+    private function buildWeeklySeries(int $weekOffset = 0): array
+    {
+        $days = collect();
 
-    $startOfWeek = now()->startOfWeek();
+        $startOfWeek = now()->startOfWeek()->addWeeks($weekOffset);
 
-    for ($i = 0; $i < 7; $i++) {
-        $date = $startOfWeek->copy()->addDays($i);
+        for ($i = 0; $i < 7; $i++) {
+            $date = $startOfWeek->copy()->addDays($i);
 
-        $count = RupRecord::whereDate('created_at', $date->toDateString())
-            ->count();
+            $count = RupRecord::whereDate('created_at', $date->toDateString())
+                ->count();
 
-        $days->push([
-            'day' => $date->locale('id')->isoFormat('ddd'),
-            'date' => $date->format('Y-m-d'),
-            'value' => $count,
-            'bar_height' => max(24, min(160, $count * 12)),
-        ]);
+            $days->push([
+                'day' => $date->locale('id')->isoFormat('ddd'),
+                'date' => $date->format('Y-m-d'),
+                'value' => $count,
+                'bar_height' => max(24, min(160, $count * 12)),
+            ]);
+        }
+
+        return $days->all();
     }
 
-    return $days->all();
-    }
     private function buildStatusBreakdown(): array
     {
         $total = RupRecord::count();
@@ -715,5 +708,51 @@ class DashboardController extends Controller
             new RupExport($request->query('search'), $request->query('tahun_anggaran')),
             'data-rup-' . now()->format('Y-m-d') . '.xlsx'
         );
+    }
+
+    /**
+     * Ambil info scraping/data terakhir berdasarkan created_at RupRecord paling baru.
+     * Ini yang jadi sumber kebenaran untuk kotak "note" di dashboard.
+     */
+    private function buildLatestScraping(): ?array
+    {
+        $latest = RupRecord::latest('created_at')->first();
+
+        if (!$latest) {
+            return null;
+        }
+
+        return [
+            'title' => 'Data terbaru masuk',
+            'message' => '',
+            'created_at' => $latest->created_at?->toDateTimeString(),
+            'created_at_display' => $latest->created_at
+                ?->setTimezone('Asia/Jakarta')
+                ->format('d M Y H:i'),
+        ];
+    }
+
+    /**
+     * API untuk ambil data trend mingguan berdasarkan offset minggu (untuk navigasi chart).
+     */
+    public function weeklyTrendApi(Request $request): JsonResponse
+    {
+        try {
+            $weekOffset = (int) $request->input('week_offset', 0);
+            $startOfWeek = now()->startOfWeek()->addWeeks($weekOffset);
+            $endOfWeek = $startOfWeek->copy()->endOfWeek();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'weekly_series' => $this->buildWeeklySeries($weekOffset),
+                    'week_label' => $startOfWeek->locale('id')->isoFormat('D MMM') . ' - ' . $endOfWeek->locale('id')->isoFormat('D MMM YYYY'),
+                    'week_offset' => $weekOffset,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('weeklyTrendApi error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Gagal mengambil data trend mingguan.'], 500);
+        }
     }
 }
