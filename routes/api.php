@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TokenController;
-use app\Http\Middleware\ValidateApplicationHeader;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 
@@ -10,14 +9,14 @@ use App\Http\Controllers\AuthController;
 Route::post('/service/token', [TokenController::class, 'issueToken']);
 Route::post('/n8n/webhook', [DashboardController::class, 'n8nWebhook']);
 
-// Pakai Scantum
-Route::middleware('auth:sanctum, ValidateApplicationHeader::class')->group(function () {
+// Pakai Sanctum
+Route::middleware('auth:sanctum')->group(function () {
     
-    // 1. Dashboard & List Data RUP
+    // 1. Dashboard & List Data RUP (API)
     Route::get('/dashboard', [DashboardController::class, 'dashboardApi']);
     
     // 2. Detail Record
-    Route::get('/records/{id}', [DashboardController::class, 'showRecordApi']);
+    Route::get('/records/{id}', [DashboardController::class, 'showRecordApi'])->name('records.show');
     
     // 3. Post Import Data (dari n8n / client)
     Route::post('/n8n/import', [DashboardController::class, 'n8nImport']);

@@ -3,8 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\DashboardBasicAuth;
-use App\Http\Middleware\VerifyN8nSecret;
+// Removed application-specific auth middleware (moved/disabled)
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,15 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
+        ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'dashboard.auth' => DashboardBasicAuth::class,
-            'verify.n8n.secret' => VerifyN8nSecret::class,
             // Laravel Sanctum
             'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
             'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
-            'admin' => \App\Http\Middleware\AdminMiddleware::class,
-
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

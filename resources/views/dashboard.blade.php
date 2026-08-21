@@ -36,14 +36,43 @@
         @php
             $statMeta = [
                 'Total RUP' => ['icon' => 'speedometer', 'subtitle' => 'Seluruh data yang tersimpan'],
+                'Hari Ini' => ['icon' => 'clock', 'subtitle' => 'Ringkasan data'],
+                'Minggu Ini' => ['icon' => 'clock', 'subtitle' => 'Ringkasan data'],
+                'Bulan Ini' => ['icon' => 'clock', 'subtitle' => 'Ringkasan data'],
                 'Tahun Anggaran' => ['icon' => 'clock', 'subtitle' => 'Rekap tahun berjalan'],
                 'Terkirim Penawaran' => ['icon' => 'send', 'subtitle' => 'Status pengiriman aktif'],
                 'Prospek Pekerjaan' => ['icon' => 'message', 'subtitle' => 'Peluang yang sedang dipantau'],
                 'SIRUP' => ['icon' => 'bell', 'subtitle' => 'Sinkronisasi dan publikasi'],
                 'Import Data' => ['icon' => 'download', 'subtitle' => 'Data hasil impor terbaru'],
             ];
+
+            // Ensure primary cards appear first and in fixed order
+            $primaryLabels = ['Total RUP','Hari Ini','Minggu Ini','Bulan Ini'];
+            $primary = [];
+            $others = [];
+            foreach ($stats as $s) {
+                if (in_array($s['label'], $primaryLabels)) {
+                    $primary[$s['label']] = $s;
+                } else {
+                    $others[] = $s;
+                }
+            }
         @endphp
-        @foreach ($stats as $stat)
+
+        @foreach ($primaryLabels as $label)
+            @php($stat = $primary[$label] ?? ['label' => $label, 'value' => 0, 'tone' => 'default'])
+            @php($meta = $statMeta[$stat['label']] ?? ['icon' => 'speedometer', 'subtitle' => 'Ringkasan data'])
+            <div class="card metric-card {{ $stat['tone'] }}">
+                <div class="metric-card-top">
+                    <div class="metric-icon metric-icon-{{ $stat['tone'] }}">@include('components.ui.icon', ['name' => $meta['icon'], 'size' => 18])</div>
+                    <div class="metric-label">{{ $stat['label'] }}</div>
+                </div>
+                <div class="metric-value">{{ $stat['value'] }}</div>
+                <div class="metric-subtitle">{{ $meta['subtitle'] }}</div>
+            </div>
+        @endforeach
+
+        @foreach ($others as $stat)
             @php($meta = $statMeta[$stat['label']] ?? ['icon' => 'speedometer', 'subtitle' => 'Ringkasan data'])
             <div class="card metric-card {{ $stat['tone'] }}">
                 <div class="metric-card-top">
@@ -604,13 +633,26 @@
             const perPage = (perPageSelect?.value || '').trim();
             if (q) params.append('search', q);
             if (y) params.append('tahun_anggaran', y);
-            if (range && range !== 'all') params.append('range', range);
+            // If a calendar date filter is active, send start_date/end_date and ignore quick-range
+            if (window.dashboardDateFilter && window.dashboardDateFilter.start_date) {
+                params.append('start_date', window.dashboardDateFilter.start_date);
+                if (window.dashboardDateFilter.end_date) params.append('end_date', window.dashboardDateFilter.end_date);
+            } else {
+                if (range && range !== 'all') params.append('range', range);
+            }
             const perPageVal = Number(perPageSelect?.value || 10);
             if (perPageVal) params.append('per_page', String(perPageVal));
             if (page && page > 1) params.append('page', page);
 
-            fetch('/api/dashboard?' + params.toString())
-                .then(r => r.json())
+            fetch('/api/dashboard?' + params.toString(), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                .then(r => {
+                    const contentType = r.headers.get('content-type') || '';
+                    if (!r.ok || contentType.indexOf('application/json') === -1) {
+                        // Possibly redirected to login or received HTML response
+                        throw new Error('Unexpected response from server');
+                    }
+                    return r.json();
+                })
                 .then(payload => {
                     const values = payload?.data?.stats ?? [];
                     const cards = document.querySelectorAll('#stats-grid .metric-value');
@@ -644,7 +686,13 @@
         filterForm?.addEventListener('submit', function (e) { e.preventDefault(); fetchDashboard(1); });
         searchInput?.addEventListener('input', () => fetchDashboard(1));
         yearSelect?.addEventListener('change', () => fetchDashboard(1));
-        rangeSelect?.addEventListener('change', () => fetchDashboard(1));
+        rangeSelect?.addEventListener('change', () => {
+            // switching quick range should clear any calendar selection
+            if (window.dashboardDateFilter) {
+                window.dashboardDateFilter = {};
+            }
+            fetchDashboard(1);
+        });
         perPageSelect?.addEventListener('change', () => fetchDashboard(1));
 
         // initial load
@@ -702,6 +750,9 @@ document.addEventListener('DOMContentLoaded', function () {
             String(date.getDate()).padStart(2, '0');
     }
 
+    // ensure global date filter holder
+    if (!window.dashboardDateFilter) window.dashboardDateFilter = {};
+
     function isSameDate(a, b) {
         if (!a || !b) return false;
 
@@ -752,114 +803,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const date = new Date(year, month, day);
 
             button.textContent = day;
-
-            const today = new Date();
-
-            if (isSameDate(date, today)) {
-                button.classList.add('today');
-            }
-
-            if (
-                isSameDate(date, startDate) ||
-                isSameDate(date, endDate)
-            ) {
-                button.classList.add('selected');
-            }
-
-            if (isBetween(date, startDate, endDate)) {
-                button.classList.add('in-range');
-            }
-
-            button.addEventListener('click', function (event) {
-
-                event.stopPropagation();
-
-                if (!startDate) {
-
-                    startDate = new Date(date);
-                    endDate = null;
-
-                    hint.textContent =
-                        'Pilih tanggal selesai (opsional)';
-
-                } else if (!endDate) {
-
-                    if (date < startDate) {
-
-                        endDate = new Date(startDate);
-                        startDate = new Date(date);
-
-                    } else {
-
-                        endDate = new Date(date);
-
-                    }
-
-                    hint.textContent =
-                        'Rentang tanggal siap diterapkan';
-
-                } else {
-
-                    startDate = new Date(date);
-                    endDate = null;
-
-                    hint.textContent =
-                        'Pilih tanggal selesai (opsional)';
-                }
-
-                updateSelectedDates();
-                renderCalendar();
-            });
-
-            calendarDays.appendChild(button);
-        }
-    }
-
-    function updateSelectedDates() {
-
-        startText.textContent =
-            startDate ? formatDate(startDate) : 'Pilih tanggal';
-
-        endText.textContent =
-            endDate ? formatDate(endDate) : 'Opsional';
-    }
-
-    trigger.addEventListener('click', function (event) {
-
-        event.stopPropagation();
-
-        popup.classList.toggle('is-open');
-
-    });
-
-    closeBtn.addEventListener('click', function (event) {
-
-        event.stopPropagation();
+        // Use the shared fetchDashboard flow: set global filter and refetch
+        window.dashboardDateFilter = window.dashboardDateFilter || {};
+        window.dashboardDateFilter.start_date = formatApiDate(startDate);
+        window.dashboardDateFilter.end_date = endDate ? formatApiDate(endDate) : null;
 
         popup.classList.remove('is-open');
 
-    });
-
-    applyBtn.addEventListener('click', function (event) {
-
-        event.stopPropagation();
-
-        if (!startDate) {
-
-            rangeText.textContent = 'Pilih tanggal';
-
-            return;
-        }
-
-        if (endDate) {
-
-            rangeText.textContent =
-                `${formatDate(startDate)} - ${formatDate(endDate)}`;
-
-        } else {
-
-            rangeText.textContent =
-                formatDate(startDate);
+        // trigger the central fetch which will render records and pagination
+        fetchDashboard(1);
 
         }
 
@@ -893,8 +845,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         params.append('per_page', perPage);
 
-        fetch('/api/dashboard?' + params.toString())
-            .then(response => response.json())
+        fetch('/api/dashboard?' + params.toString(), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(response => {
+                const contentType = response.headers.get('content-type') || '';
+                if (!response.ok || contentType.indexOf('application/json') === -1) {
+                    throw new Error('Unexpected response from server');
+                }
+                return response.json();
+            })
             .then(payload => {
 
                 if (!payload.success) {
@@ -990,9 +948,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         renderCalendar();
 
-        // Reset tabel
-        window.location.href =
-            "{{ route('dashboard') }}";
+        // Reset tabel using central fetch (avoid full reload)
+        if (window.dashboardDateFilter) window.dashboardDateFilter = {};
+        rangeText.textContent = 'Pilih tanggal';
+        // also reset quick-range selector
+        const rs = document.getElementById('dashboard-range');
+        if (rs) rs.value = 'all';
+
+        fetchDashboard(1);
     });
 
     prevMonth.addEventListener('click', function (event) {
