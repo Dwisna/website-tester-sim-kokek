@@ -25,26 +25,48 @@ class DashboardController extends Controller
     {
         $query = RupRecord::query();
 
-        if ($request->filled('search')) {
-            $query->where('nama_pekerjaan', 'like', '%' . $request->search . '%')
-                ->orWhere('nama_instansi', 'like', '%' . $request->search . '%')
-                ->orWhere('id_rup', 'like', '%' . $request->search . '%');
-        }
+    // 1. Filter Search (Diberi tanda kurung agar aman dengan filter lain)
+    if ($request->filled('search')) {
+        $q = $request->input('search');
+        $query->where(function ($sub) use ($q) {
+            $sub->where('nama_pekerjaan', 'like', "%{$q}%")
+                ->orWhere('nama_instansi', 'like', "%{$q}%")
+                ->orWhere('id_rup', 'like', "%{$q}%");
+        });
+    }
 
-        if ($request->filled('tahun_anggaran')) {
-            $query->where('tahun_anggaran', $request->tahun_anggaran);
-        }
+    // 2. Filter Tahun
+    if ($request->filled('tahun_anggaran')) {
+        $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
+    }
 
-        if ($request->filled('start_date')) {
-            if ($request->filled('end_date')) {
-                $query->whereBetween('created_at', [
-                    Carbon::parse($request->start_date)->startOfDay(),
-                    Carbon::parse($request->end_date)->endOfDay(),
-                ]);
-            } else {
-                $query->whereDate('created_at', Carbon::parse($request->start_date)->toDateString());
+    // 3. Filter Kalender & Preset Range
+    if ($request->filled('start_date')) {
+        $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+
+        if ($request->filled('end_date')) {
+            $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+        } else {
+            $query->whereBetween('created_at', [$startDate, $startDate->copy()->endOfDay()]);
+        }
+    } else {
+        $range = $request->input('range', 'all');
+        if (in_array($range, ['today', 'week', 'month'], true)) {
+            $now = now();
+            if ($range === 'today') {
+                $query->whereDate('created_at', $now->toDateString());
+            } elseif ($range === 'week') {
+                $start = $now->copy()->startOfWeek();
+                $end = $now->copy()->endOfWeek();
+                $query->whereBetween('created_at', [$start, $end]);
+            } elseif ($range === 'month') {
+                $start = $now->copy()->startOfMonth();
+                $end = $now->copy()->endOfMonth();
+                $query->whereBetween('created_at', [$start, $end]);
             }
         }
+    }
 
         try {
             $records = $query->orderByDesc('created_at')->paginate(request('per_page', 10))->withQueryString();
@@ -127,21 +149,21 @@ class DashboardController extends Controller
                 } else {
                     $query->whereBetween('created_at', [$startDate, $startDate->copy()->endOfDay()]);
                 }
-            }
-
-            $range = $request->input('range', 'all');
-            if (in_array($range, ['today', 'week', 'month'], true)) {
-                $now = now();
-                if ($range === 'today') {
-                    $query->whereDate('created_at', $now->toDateString());
-                } elseif ($range === 'week') {
-                    $start = $now->copy()->startOfWeek();
-                    $end = $now->copy()->endOfWeek();
-                    $query->whereBetween('created_at', [$start, $end]);
-                } elseif ($range === 'month') {
-                    $start = $now->copy()->startOfMonth();
-                    $end = $now->copy()->endOfMonth();
-                    $query->whereBetween('created_at', [$start, $end]);
+            } else {
+                $range = $request->input('range', 'all');
+                if (in_array($range, ['today', 'week', 'month'], true)) {
+                    $now = now();
+                    if ($range === 'today') {
+                        $query->whereDate('created_at', $now->toDateString());
+                    } elseif ($range === 'week') {
+                        $start = $now->copy()->startOfWeek();
+                        $end = $now->copy()->endOfWeek();
+                        $query->whereBetween('created_at', [$start, $end]);
+                    } elseif ($range === 'month') {
+                        $start = $now->copy()->startOfMonth();
+                        $end = $now->copy()->endOfMonth();
+                        $query->whereBetween('created_at', [$start, $end]);
+                    }
                 }
             }
 
@@ -717,39 +739,35 @@ class DashboardController extends Controller
     }
 
     public function download(Request $request)
-{
-    return Excel::download(
-        new RupExport(
-            $request->query('search'),
-            $request->query('tahun_anggaran'),
-            $request->query('range'),
-            $request->query('start_date'),
-            $request->query('end_date'),
-        ),
-        'data-rup-' . now()->format('Y-m-d') . '.xlsx'
-    );
-}
+    {
+        return Excel::download(
+            new RupExport(
+                $request->query('search'),
+                $request->query('tahun_anggaran'),
+                $request->query('start_date'),
+                $request->query('end_date'),
+                $request->query('range')
+            ),
+            'data-rup-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
 
     /**
      * Sumber data untuk kotak note status scraping
      */
     private function buildLatestScraping(): ?array
-{
-    $latest = N8nWebhookLog::where('status', 'imported')
-        ->latest('created_at')
-        ->first();
+    {
+        $latest =  RupRecord::latest('created_at')->first();
 
     if (!$latest) {
         return null;
     }
 
-    return [
-        'title' => 'Data terbaru masuk',
-        'message' => $latest->message ?? 'Import data berhasil.',
-        'created_at' => $latest->created_at?->toDateTimeString(),
-        'created_at_display' => $latest->created_at
-            ?->setTimezone('Asia/Jakarta')
-            ->format('d M Y H:i'),
-    ];
-}
+        return [
+            'title' => 'Data terbaru masuk',
+            'message' => '',
+            'created_at' => $latest->created_at?->toDateTimeString(),
+            'created_at_display' => $latest->created_at?->setTimezone('Asia/Jakarta')->format('d M Y H:i'),
+        ];
+    }
 }
