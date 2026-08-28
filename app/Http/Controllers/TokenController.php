@@ -11,12 +11,12 @@ class TokenController extends Controller
     public function issueToken(Request $request)
     {
         // 1. Cek Kewajiban HTTPS (Hanya aktif jika RUP_API_REQUIRE_HTTPS=true di .env)
-        if (config('rup.require_https') && !$request->isSecure()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Protokol HTTPS diwajibkan untuk endpoint ini.'
-            ], 403);
-        }
+        // if (config('rup.require_https') && !$request->isSecure()) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Protokol HTTPS diwajibkan untuk endpoint ini.'
+        //     ], 403);
+        // }
 
         // 2. Validasi input
         $request->validate([
