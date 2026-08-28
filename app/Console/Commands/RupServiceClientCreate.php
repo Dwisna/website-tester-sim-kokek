@@ -39,6 +39,7 @@ class RupServiceClientCreate extends Command
             'client_id' => $clientId,
             // Secret di-hash agar aman di database
             'secret_hash' => Hash::make($plainSecret),
+            // 'secret_hash' => $plainSecret,
             'allowed_purposes' => json_encode([$purpose]),
             'allowed_abilities' => json_encode(['application:access', 'posts:read']),
             'allowed_ips' => empty($ips) ? null : json_encode($ips),

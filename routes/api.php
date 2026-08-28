@@ -25,8 +25,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/n8n/import', [DashboardController::class, 'n8nImport']);
     
     // 4. Log Webhook, Notifikasi, dan Demo Chat
-    Route::get('/history', [DashboardController::class, 'historyApi']);
-    Route::get('/notifications', [DashboardController::class, 'notificationsApi']);
+    //Route::get('/history', [DashboardController::class, 'historyApi']);
+    //Route::get('/notifications', [DashboardController::class, 'notificationsApi']);
     
     // 5. Download Excel
     Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
