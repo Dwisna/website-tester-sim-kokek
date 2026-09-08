@@ -33,6 +33,7 @@ class RupRecord extends Model
         'keterangan',
         'is_sirup',
         'is_import',
+        'is_scrapping',
         'is_pekerjaan_prospek',
         'id_sis_rup',
         'alamat_organisasi',
@@ -43,6 +44,7 @@ class RupRecord extends Model
     ];
 
     protected $casts = [
+        'is_scrapping' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
