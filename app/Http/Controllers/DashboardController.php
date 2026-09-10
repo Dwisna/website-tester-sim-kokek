@@ -32,6 +32,7 @@ class DashboardController extends Controller
             $query->where(function ($sub) use ($q) {
                 $sub->where('nama_pekerjaan', 'like', "%{$q}%")
                     ->orWhere('nama_instansi', 'like', "%{$q}%")
+                    ->orWhere('id_sis_rup', 'like', "%{$q}%")
                     ->orWhere('id_rup', 'like', "%{$q}%");
             });
         }
@@ -133,6 +134,7 @@ class DashboardController extends Controller
                 $query->where(function ($sub) use ($q) {
                     $sub->where('nama_pekerjaan', 'like', "%{$q}%")
                         ->orWhere('nama_instansi', 'like', "%{$q}%")
+                        ->orWhere('id_sis_rup', 'like', "%{$q}%")
                         ->orWhere('id_rup', 'like', "%{$q}%");
                 });
             }
@@ -521,6 +523,7 @@ class DashboardController extends Controller
                         $existingRecord->fill($normalized);
                         $existingRecord->is_scrapping = 1;
                         $existingRecord->is_sirup = 1;
+                        $existingRecord->is_status_spse = 1;
 
                                         // Pastikan id_rup berisi format UUID yang valid
                     $isUuid = preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', (string) $existingRecord->id_rup);
@@ -535,6 +538,7 @@ class DashboardController extends Controller
                         $normalized['id_rup'] = (string) Str::uuid();
                         $normalized['is_scrapping'] = 1;
                         $normalized['is_sirup'] = 1;
+                        $normalized['is_status_spse'] = 1;
 
                         $record = RupRecord::create($normalized);
                         if ($record) {
@@ -624,7 +628,7 @@ class DashboardController extends Controller
         $fillable = $model->getFillable();
         $normalized = [];
 
-        $booleanFields = ['is_sirup', 'is_import', 'is_pekerjaan_prospek', 'is_status_kirim_penawaran', 'is_scrapping'];
+        $booleanFields = ['is_sirup', 'is_import', 'is_pekerjaan_prospek', 'is_status_kirim_penawaran', 'is_scrapping','is_status_spse'];
 
         foreach ($fillable as $field) {
             if (!array_key_exists($field, $record)) {
@@ -657,6 +661,7 @@ class DashboardController extends Controller
         // Pastikan kolom is_scrapping selalu terisi 1 untuk data scraping
         $normalized['is_scrapping'] = 1;
         $normalized['is_sirup'] = 1;
+        $normalized['is_status_spse'] = 1;
 
         if (isset($record['created_at'])) {
             $normalized['created_at'] = $record['created_at'];
