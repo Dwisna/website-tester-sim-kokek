@@ -32,6 +32,7 @@ class RupRecord extends Model
         'pic',
         'keterangan',
         'is_sirup',
+        'is_status_spse',
         'is_import',
         'is_scrapping',
         'is_pekerjaan_prospek',
@@ -45,6 +46,7 @@ class RupRecord extends Model
 
     protected $casts = [
         'is_scrapping' => 'boolean',
+        'is_status_spse' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
