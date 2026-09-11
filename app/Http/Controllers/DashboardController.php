@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Str;
 use App\Exports\RupExport;
 use App\Models\N8nWebhookLog;
 use App\Models\RupRecord;
@@ -25,48 +26,49 @@ class DashboardController extends Controller
     {
         $query = RupRecord::query();
 
-    // 1. Filter Search (Diberi tanda kurung agar aman dengan filter lain)
-    if ($request->filled('search')) {
-        $q = $request->input('search');
-        $query->where(function ($sub) use ($q) {
-            $sub->where('nama_pekerjaan', 'like', "%{$q}%")
-                ->orWhere('nama_instansi', 'like', "%{$q}%")
-                ->orWhere('id_rup', 'like', "%{$q}%");
-        });
-    }
-
-    // 2. Filter Tahun
-    if ($request->filled('tahun_anggaran')) {
-        $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
-    }
-
-    // 3. Filter Kalender & Preset Range
-    if ($request->filled('start_date')) {
-        $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
-
-        if ($request->filled('end_date')) {
-            $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        } else {
-            $query->whereBetween('created_at', [$startDate, $startDate->copy()->endOfDay()]);
+        // 1. Filter Search (Diberi tanda kurung agar aman dengan filter lain)
+        if ($request->filled('search')) {
+            $q = $request->input('search');
+            $query->where(function ($sub) use ($q) {
+                $sub->where('nama_pekerjaan', 'like', "%{$q}%")
+                    ->orWhere('nama_instansi', 'like', "%{$q}%")
+                    ->orWhere('id_sis_rup', 'like', "%{$q}%")
+                    ->orWhere('id_rup', 'like', "%{$q}%");
+            });
         }
-    } else {
-        $range = $request->input('range', 'all');
-        if (in_array($range, ['today', 'week', 'month'], true)) {
-            $now = now();
-            if ($range === 'today') {
-                $query->whereDate('created_at', $now->toDateString());
-            } elseif ($range === 'week') {
-                $start = $now->copy()->startOfWeek();
-                $end = $now->copy()->endOfWeek();
-                $query->whereBetween('created_at', [$start, $end]);
-            } elseif ($range === 'month') {
-                $start = $now->copy()->startOfMonth();
-                $end = $now->copy()->endOfMonth();
-                $query->whereBetween('created_at', [$start, $end]);
+
+        // 2. Filter Tahun
+        if ($request->filled('tahun_anggaran')) {
+            $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
+        }
+
+        // 3. Filter Kalender & Preset Range
+        if ($request->filled('start_date')) {
+            $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+
+            if ($request->filled('end_date')) {
+                $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+                $query->whereBetween('created_at', [$startDate, $endDate]);
+            } else {
+                $query->whereBetween('created_at', [$startDate, $startDate->copy()->endOfDay()]);
+            }
+        } else {
+            $range = $request->input('range', 'all');
+            if (in_array($range, ['today', 'week', 'month'], true)) {
+                $now = now();
+                if ($range === 'today') {
+                    $query->whereDate('created_at', $now->toDateString());
+                } elseif ($range === 'week') {
+                    $start = $now->copy()->startOfWeek();
+                    $end = $now->copy()->endOfWeek();
+                    $query->whereBetween('created_at', [$start, $end]);
+                } elseif ($range === 'month') {
+                    $start = $now->copy()->startOfMonth();
+                    $end = $now->copy()->endOfMonth();
+                    $query->whereBetween('created_at', [$start, $end]);
+                }
             }
         }
-    }
 
         try {
             $records = $query->orderByDesc('created_at')->paginate(request('per_page', 10))->withQueryString();
@@ -132,6 +134,7 @@ class DashboardController extends Controller
                 $query->where(function ($sub) use ($q) {
                     $sub->where('nama_pekerjaan', 'like', "%{$q}%")
                         ->orWhere('nama_instansi', 'like', "%{$q}%")
+                        ->orWhere('id_sis_rup', 'like', "%{$q}%")
                         ->orWhere('id_rup', 'like', "%{$q}%");
                 });
             }
@@ -488,47 +491,61 @@ class DashboardController extends Controller
 
                     $normalized = $this->normalizeRupData($recordData);
 
-                    if (empty($normalized['id_rup']) && (empty($normalized['nama_pekerjaan']) || empty($normalized['nama_instansi']))) {
+                    if (empty($normalized['id_sis_rup']) && (empty($normalized['nama_pekerjaan']) || empty($normalized['nama_instansi']))) {
                         $skipped++;
                         $errors[] = "Index {$i}: data tidak lengkap.";
                         continue;
                     }
 
-                    if (!empty($normalized['id_rup'])) {
-                        $existingById = RupRecord::where('id_rup', $normalized['id_rup'])->first();
-                        if ($existingById) {
-                            $existingById->fill($normalized);
-                            if ($existingById->isDirty()) {
-                                $existingById->save();
-                                $updated++;
-                            }
-                            continue;
-                        }
-                    }
+                    $existingRecord = null;
 
-                    $dupQuery = RupRecord::query();
-                    if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
+                    // 1. Cek utama berdasarkan id_sis_rup unik LKPP
+                    if (!empty($normalized['id_sis_rup'])) {
+                        $existingRecord = RupRecord::where('id_sis_rup', $normalized['id_sis_rup'])->first();
+                    } 
+                    // 2. Fallback: Hanya periksa nama jika id_sis_rup kosong
+                    else if (!empty($normalized['nama_pekerjaan']) && !empty($normalized['nama_instansi'])) {
                         $namaP = trim(mb_strtolower($normalized['nama_pekerjaan']));
                         $namaI = trim(mb_strtolower($normalized['nama_instansi']));
 
-                        $dupQuery->whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
+                        $dupQuery = RupRecord::whereRaw('LOWER(TRIM(nama_pekerjaan)) = ?', [$namaP])
                             ->whereRaw('LOWER(TRIM(nama_instansi)) = ?', [$namaI]);
 
                         if (!empty($normalized['tahun_anggaran'])) {
                             $dupQuery->where('tahun_anggaran', $normalized['tahun_anggaran']);
                         }
 
-                        if ($dupQuery->exists()) {
-                            $skipped++;
-                            continue;
-                        }
+                        $existingRecord = $dupQuery->first();
                     }
 
-                    $record = RupRecord::create($normalized);
-                    if ($record) {
-                        $created++;
+                    // 3. Simpan: Update jika ada record lama, atau Insert jika record baru
+                    if ($existingRecord) {
+                        $existingRecord->fill($normalized);
+                        $existingRecord->is_scrapping = 1;
+                        $existingRecord->is_sirup = 1;
+                        $existingRecord->is_status_spse = 1;
+
+                                        // Pastikan id_rup berisi format UUID yang valid
+                    $isUuid = preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', (string) $existingRecord->id_rup);
+                    if (!$isUuid) {
+                        $existingRecord->id_rup = (string) Str::uuid();
+                    }
+                        
+                        $existingRecord->save();
+                        $updated++;
                     } else {
-                        $skipped++;
+                        // Untuk data baru: id_rup diisi UID unik baru
+                        $normalized['id_rup'] = (string) Str::uuid();
+                        $normalized['is_scrapping'] = 1;
+                        $normalized['is_sirup'] = 1;
+                        $normalized['is_status_spse'] = 1;
+
+                        $record = RupRecord::create($normalized);
+                        if ($record) {
+                            $created++;
+                        } else {
+                            $skipped++;
+                        }
                     }
                 } catch (\Throwable $e) {
                     $skipped++;
@@ -611,7 +628,7 @@ class DashboardController extends Controller
         $fillable = $model->getFillable();
         $normalized = [];
 
-        $booleanFields = ['is_sirup', 'is_import', 'is_pekerjaan_prospek', 'is_status_kirim_penawaran'];
+        $booleanFields = ['is_sirup', 'is_import', 'is_pekerjaan_prospek', 'is_status_kirim_penawaran', 'is_scrapping','is_status_spse'];
 
         foreach ($fillable as $field) {
             if (!array_key_exists($field, $record)) {
@@ -631,6 +648,20 @@ class DashboardController extends Controller
 
             $normalized[$field] = $value;
         }
+
+        // Pindahkan ID hasil scraping LKPP ke kolom id_sis_rup
+        $scrapedId = $record['id_rup'] ?? $record['id_sis_rup'] ?? null;
+        if (!empty($scrapedId)) {
+            $normalized['id_sis_rup'] = (string) $scrapedId;
+        }
+
+        // Pastikan nilai scraping n8n tidak masuk ke kolom id_rup
+        unset($normalized['id_rup']);
+
+        // Pastikan kolom is_scrapping selalu terisi 1 untuk data scraping
+        $normalized['is_scrapping'] = 1;
+        $normalized['is_sirup'] = 1;
+        $normalized['is_status_spse'] = 1;
 
         if (isset($record['created_at'])) {
             $normalized['created_at'] = $record['created_at'];
@@ -757,7 +788,7 @@ class DashboardController extends Controller
      */
     private function buildLatestScraping(): ?array
     {
-        $latest =  RupRecord::latest('created_at')->first();
+        $latest = RupRecord::latest('created_at')->first();
 
     if (!$latest) {
         return null;

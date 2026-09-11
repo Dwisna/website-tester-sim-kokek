@@ -30,6 +30,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // 5. Download Excel
     Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
-    
 
+    Route::get('/prospek', [App\Http\Controllers\ProspekApiController::class, 'index']);
+
+    Route::post('/prospek/import-spse', [App\Http\Controllers\ProspekApiController::class, 'importSpse']);
 });
