@@ -12,75 +12,92 @@ use Illuminate\Support\Str;
 class ProspekApiController extends Controller
 {
     public function index(Request $request): JsonResponse
-    {
-        try {
-            $perPage = (int) $request->input('per_page', 10);
-            $search  = $request->input('search');
+{
+    try {
+        $perPage = (int) $request->input('per_page', 10);
+        $search  = $request->input('search');
 
-            // Filter data yang ditandai sebagai prospek
-            $query = RupRecord::query()
-                ->where('is_status_spse', 1)
-                ->whereNull('deleted_at');
+        // Query dasar data prospek
+        $baseQuery = RupRecord::query()
+            ->where('is_status_spse', 1)
+            ->whereNull('deleted_at');
 
-            // Filter Pencarian
-            if (!empty($search)) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('nama_pekerjaan', 'like', "%{$search}%")
-                      ->orWhere('nama_instansi', 'like', "%{$search}%")
-                      ->orWhere('nama_organisasi', 'like', "%{$search}%")
-                      ->orWhere('id_sis_rup', 'like', "%{$search}%");
-                });
-            }
+        // 1. Hitung Statistik berdasarkan kapan data masuk prospek (prospek_at)
+        $now = now();
+        $stats = [
+            'total'      => (clone $baseQuery)->count(),
+            'hari_ini'   => (clone $baseQuery)->whereDate('prospek_at', $now->toDateString())->count(),
+            'minggu_ini' => (clone $baseQuery)->whereBetween('prospek_at', [
+                $now->copy()->startOfWeek(), 
+                $now->copy()->endOfWeek()
+            ])->count(),
+            'bulan_ini'  => (clone $baseQuery)->whereYear('prospek_at', $now->year)
+                                              ->whereMonth('prospek_at', $now->month)
+                                              ->count(),
+        ];
 
-            // Filter tambahan opsional
-            if ($request->filled('tahun_anggaran')) {
-                $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
-            }
+        // 2. Query untuk tabel dengan filter pencarian
+        $query = clone $baseQuery;
 
-            $records = $query->orderByDesc('id')->paginate($perPage);
-
-            $prospekData = $records->map(function ($item) {
-                return [
-                    'id'                        => $item->id,
-                    'id_rup'                    => $item->id_rup,
-                    'id_sis_rup'                => $item->id_sis_rup,
-                    'nama_pekerjaan'            => $item->nama_pekerjaan,
-                    'pagu'                      => $item->pagu,
-                    'nama_jenis_pengadaan'      => $item->nama_jenis_pengadaan,
-                    'nama_metode_pengadaan'     => $item->nama_metode_pengadaan,
-                    'waktu_pemilihan_penyedia'  => $item->waktu_pemilihan_penyedia,
-                    'nama_instansi'             => $item->nama_instansi,
-                    'nama_organisasi'           => $item->nama_organisasi,
-                    'lokasi_pekerjaan'          => $item->lokasi_pekerjaan,
-                    'tahun_anggaran'            => $item->tahun_anggaran,
-                    'status'                    => 'Daftar',
-                    'created_at'                => $item->created_at?->toDateTimeString(),
-                ];
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_pekerjaan', 'like', "%{$search}%")
+                  ->orWhere('nama_instansi', 'like', "%{$search}%")
+                  ->orWhere('nama_organisasi', 'like', "%{$search}%")
+                  ->orWhere('id_sis_rup', 'like', "%{$search}%");
             });
-
-            return response()->json([
-                'success' => true,
-                'data'    => $prospekData,
-                'meta'    => [
-                    'current_page' => $records->currentPage(),
-                    'last_page'    => $records->lastPage(),
-                    'per_page'     => $records->perPage(),
-                    'total'        => $records->total(),
-                    'from'         => $records->firstItem(),
-                    'to'           => $records->lastItem(),
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('ProspekApiController error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'line'    => $e->getLine(),
-                'file'    => basename($e->getFile()),
-            ], 500);
         }
+
+        if ($request->filled('tahun_anggaran')) {
+            $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
+        }
+
+        $records = $query->orderByDesc('prospek_at')->orderByDesc('id')->paginate($perPage);
+
+        $prospekData = $records->map(function ($item) {
+            return [
+                'id'                        => $item->id,
+                'id_rup'                    => $item->id_rup,
+                'id_sis_rup'                => $item->id_sis_rup,
+                'nama_pekerjaan'            => $item->nama_pekerjaan,
+                'pagu'                      => $item->pagu,
+                'nama_jenis_pengadaan'      => $item->nama_jenis_pengadaan,
+                'nama_metode_pengadaan'     => $item->nama_metode_pengadaan,
+                'waktu_pemilihan_penyedia'  => $item->waktu_pemilihan_penyedia,
+                'nama_instansi'             => $item->nama_instansi,
+                'nama_organisasi'           => $item->nama_organisasi,
+                'lokasi_pekerjaan'          => $item->lokasi_pekerjaan,
+                'tahun_anggaran'            => $item->tahun_anggaran,
+                'status'                    => 'Daftar',
+                'created_at'                => $item->created_at?->toDateTimeString(),
+                'prospek_at'                => $item->prospek_at?->toDateTimeString(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'stats'   => $stats, // <-- Objek statistik dikirim ke Project 2
+            'data'    => $prospekData,
+            'meta'    => [
+                'current_page' => $records->currentPage(),
+                'last_page'    => $records->lastPage(),
+                'per_page'     => $records->perPage(),
+                'total'        => $records->total(),
+                'from'         => $records->firstItem(),
+                'to'           => $records->lastItem(),
+            ],
+        ]);
+    } catch (\Throwable $e) {
+        Log::error('ProspekApiController error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+            'line'    => $e->getLine(),
+            'file'    => basename($e->getFile()),
+        ], 500);
     }
+}
 
     /**
      * Endpoint untuk import data hasil scraping SPSE ke data prospek
@@ -136,6 +153,12 @@ class ProspekApiController extends Controller
             $record->fill(array_filter($validated));
             $record->is_status_spse = 1;
             $record->is_scrapping   = 1;
+
+            // Hanya isi prospek_at jika sebelumnya masih NULL
+            if (is_null($record->prospek_at)) {
+            $record->prospek_at = now();
+            }
+
             $record->save();
 
             return response()->json([

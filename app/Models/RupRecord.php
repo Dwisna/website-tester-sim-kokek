@@ -42,6 +42,7 @@ class RupRecord extends Model
         'is_status_kirim_penawaran',
         'id_nomor_surat',
         'input_id',
+        'prospek_at',
     ];
 
     protected $casts = [
@@ -50,5 +51,6 @@ class RupRecord extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'prospek_at' => 'datetime',
     ];
 }
