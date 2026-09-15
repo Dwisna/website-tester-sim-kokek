@@ -42,6 +42,7 @@ class RupRecord extends Model
         'is_status_kirim_penawaran',
         'id_nomor_surat',
         'input_id',
+        'prospek_at',
     ];
 
     protected $casts = [
