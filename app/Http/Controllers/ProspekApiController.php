@@ -44,9 +44,9 @@ class ProspekApiController extends Controller
                 ->whereNull('deleted_at');
 
             $totalAll = (clone $statsBase)->count();
-            $hariIni = (clone $statsBase)->whereDate('created_at', \Carbon\Carbon::today())->count();
-            $mingguIni = (clone $statsBase)->where('created_at', '>=', \Carbon\Carbon::now()->startOfWeek())->count();
-            $bulanIni = (clone $statsBase)->where('created_at', '>=', \Carbon\Carbon::now()->startOfMonth())->count();
+            $hariIni = (clone $statsBase)->whereDate('prospek_at', \Carbon\Carbon::today())->count();
+            $mingguIni = (clone $statsBase)->where('prospek_at', '>=', \Carbon\Carbon::now()->startOfWeek())->count();
+            $bulanIni = (clone $statsBase)->where('prospek_at', '>=', \Carbon\Carbon::now()->startOfMonth())->count();
 
             $prospekData = $records->map(function ($item) {
                 return [
@@ -63,7 +63,7 @@ class ProspekApiController extends Controller
                     'lokasi_pekerjaan'          => $item->lokasi_pekerjaan,
                     'tahun_anggaran'            => $item->tahun_anggaran,
                     'status'                    => 'Daftar',
-                    'created_at'                => $item->created_at?->toDateTimeString(),
+                    'prospek_at'                => $item->prospek_at?->toDateTimeString(),
                 ];
             });
 
@@ -153,10 +153,17 @@ class ProspekApiController extends Controller
                 $record->nama_jenis_usaha      = $validated['nama_jenis_usaha'] ?? '-';
             }
 
-            // 3. Simpan data SPSE dan tandai status prospek
+           // 3. Simpan data SPSE dan tandai status prospek
             $record->fill(array_filter($validated));
+
+            // Set prospek_at HANYA saat pertama kali berubah jadi status prospek (0 -> 1)
+            if ((int) $record->is_status_spse !== 1) {
+                $record->prospek_at = now();
+            }
+
             $record->is_status_spse = 1;
             $record->is_scrapping   = 1;
+            $record->is_pekerjaan_prospek     = 1;
             $record->save();
 
             return response()->json([

@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TokenController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProspekApiController;
 use App\Http\Controllers\AuthController;
 
 // publik (tanpa token)
@@ -31,7 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // 5. Download Excel
     Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
 
-    Route::get('/prospek', [App\Http\Controllers\ProspekApiController::class, 'index']);
-
-    Route::post('/prospek/import-spse', [App\Http\Controllers\ProspekApiController::class, 'importSpse']);
+    // 6. Prospek API
+    Route::get('/prospek', [ProspekApiController::class, 'index']);
+    Route::post('/prospek/import-spse', [ProspekApiController::class, 'importSpse']);
 });
