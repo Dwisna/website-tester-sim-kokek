@@ -6,149 +6,247 @@ use App\Http\Controllers\Controller;
 use App\Models\RupRecord;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ProspekApiController extends Controller
 {
     public function index(Request $request): JsonResponse
-    {
-        try {
-            $perPage = (int) $request->input('per_page', 10);
-            $search  = $request->input('search');
+{
+    try {
+        $perPage = (int) $request->input('per_page', 10);
+        $search  = $request->input('search');
 
-            // Filter data yang ditandai sebagai prospek
-            $query = RupRecord::query()
-                ->where('is_status_spse', 1)
-                ->whereNull('deleted_at');
+        // Query dasar data prospek
+        $baseQuery = RupRecord::query()
+            ->where('is_status_spse', 1)
+            ->whereNull('deleted_at');
 
-            // Filter Pencarian
-            if (!empty($search)) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('nama_pekerjaan', 'like', "%{$search}%")
-                      ->orWhere('nama_instansi', 'like', "%{$search}%")
-                      ->orWhere('nama_organisasi', 'like', "%{$search}%")
-                      ->orWhere('id_sis_rup', 'like', "%{$search}%");
-                });
-            }
+        // 1. Hitung Statistik berdasarkan kapan data masuk prospek (prospek_at)
+        $now = now();
+        $stats = [
+            'total'      => (clone $baseQuery)->count(),
+            'hari_ini'   => (clone $baseQuery)->whereDate('prospek_at', $now->toDateString())->count(),
+            'minggu_ini' => (clone $baseQuery)->whereBetween('prospek_at', [
+                $now->copy()->startOfWeek(), 
+                $now->copy()->endOfWeek()
+            ])->count(),
+            'bulan_ini'  => (clone $baseQuery)->whereYear('prospek_at', $now->year)
+                                              ->whereMonth('prospek_at', $now->month)
+                                              ->count(),
+        ];
 
-            // Filter tambahan opsional
-            if ($request->filled('tahun_anggaran')) {
-                $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
-            }
+        // 2. Query untuk tabel dengan filter pencarian
+        $query = clone $baseQuery;
 
-            $records = $query->orderByDesc('id')->paginate($perPage);
-
-            $prospekData = $records->map(function ($item) {
-                return [
-                    'id'                        => $item->id,
-                    'id_rup'                    => $item->id_rup,
-                    'id_sis_rup'                => $item->id_sis_rup,
-                    'nama_pekerjaan'            => $item->nama_pekerjaan,
-                    'pagu'                      => $item->pagu,
-                    'nama_jenis_pengadaan'      => $item->nama_jenis_pengadaan,
-                    'nama_metode_pengadaan'     => $item->nama_metode_pengadaan,
-                    'waktu_pemilihan_penyedia'  => $item->waktu_pemilihan_penyedia,
-                    'nama_instansi'             => $item->nama_instansi,
-                    'nama_organisasi'           => $item->nama_organisasi,
-                    'lokasi_pekerjaan'          => $item->lokasi_pekerjaan,
-                    'tahun_anggaran'            => $item->tahun_anggaran,
-                    'status'                    => 'Daftar',
-                    'created_at'                => $item->created_at?->toDateTimeString(),
-                ];
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_pekerjaan', 'like', "%{$search}%")
+                  ->orWhere('nama_instansi', 'like', "%{$search}%")
+                  ->orWhere('nama_organisasi', 'like', "%{$search}%")
+                  ->orWhere('id_sis_rup', 'like', "%{$search}%");
             });
-
-            return response()->json([
-                'success' => true,
-                'data'    => $prospekData,
-                'meta'    => [
-                    'current_page' => $records->currentPage(),
-                    'last_page'    => $records->lastPage(),
-                    'per_page'     => $records->perPage(),
-                    'total'        => $records->total(),
-                    'from'         => $records->firstItem(),
-                    'to'           => $records->lastItem(),
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('ProspekApiController error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'line'    => $e->getLine(),
-                'file'    => basename($e->getFile()),
-            ], 500);
         }
+
+        if ($request->filled('tahun_anggaran')) {
+            $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
+        }
+
+        $records = $query->orderByDesc('prospek_at')->orderByDesc('id')->paginate($perPage);
+
+        $prospekData = $records->map(function ($item) {
+            return [
+                'id'                        => $item->id,
+                'id_rup'                    => $item->id_rup,
+                'id_sis_rup'                => $item->id_sis_rup,
+                'nama_pekerjaan'            => $item->nama_pekerjaan,
+                'pagu'                      => $item->pagu,
+                'nama_jenis_pengadaan'      => $item->nama_jenis_pengadaan,
+                'nama_metode_pengadaan'     => $item->nama_metode_pengadaan,
+                'waktu_pemilihan_penyedia'  => $item->waktu_pemilihan_penyedia,
+                'nama_instansi'             => $item->nama_instansi,
+                'nama_organisasi'           => $item->nama_organisasi,
+                'lokasi_pekerjaan'          => $item->lokasi_pekerjaan,
+                'tahun_anggaran'            => $item->tahun_anggaran,
+                'status'                    => 'Daftar',
+                'created_at'                => $item->created_at?->toDateTimeString(),
+                'prospek_at'                => $item->prospek_at?->toDateTimeString(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'stats'   => $stats, // <-- Objek statistik dikirim ke Project 2
+            'data'    => $prospekData,
+            'meta'    => [
+                'current_page' => $records->currentPage(),
+                'last_page'    => $records->lastPage(),
+                'per_page'     => $records->perPage(),
+                'total'        => $records->total(),
+                'from'         => $records->firstItem(),
+                'to'           => $records->lastItem(),
+            ],
+        ]);
+    } catch (\Throwable $e) {
+        Log::error('ProspekApiController error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+            'line'    => $e->getLine(),
+            'file'    => basename($e->getFile()),
+        ], 500);
     }
+}
 
     /**
      * Endpoint untuk import data hasil scraping SPSE ke data prospek
      */
     public function importSpse(Request $request): JsonResponse
     {
+        set_time_limit(300);
+
         try {
-            $validated = $request->validate([
-                'id_sis_rup'               => 'nullable|string',
-                'id_rup'                   => 'nullable|string',
-                'nama_pekerjaan'           => 'nullable|string',
-                'nama_instansi'            => 'nullable|string',
-                'pagu'                     => 'nullable|numeric',
-                'nama_jenis_pengadaan'     => 'nullable|string',
-                'nama_metode_pengadaan'    => 'nullable|string',
-                'waktu_pemilihan_penyedia' => 'nullable|string',
-                'nama_organisasi'          => 'nullable|string',
-                'lokasi_pekerjaan'         => 'nullable|string',
-                'tahun_anggaran'           => 'nullable|string',
-                'nama_jenis_produk_rup'    => 'nullable|string',
-                'nama_jenis_usaha'         => 'nullable|string',
-            ]);
+            $payload = $request->all();
 
-            // 1. Cari data yang sudah ada (berdasarkan id_sis_rup atau id_rup)
-            $record = null;
-
-            if (!empty($validated['id_sis_rup'])) {
-                $record = RupRecord::where('id_sis_rup', $validated['id_sis_rup'])->first();
+            // Ekstrak data (format n8n {records: [...]}, array [...], atau single {...})
+            if (isset($payload['records']) && is_array($payload['records'])) {
+                $items = $payload['records'];
+            } elseif (is_array($payload) && !isset($payload[0])) {
+                $items = [$payload];
+            } else {
+                $items = (array) $payload;
             }
 
-            if (!$record && !empty($validated['id_rup'])) {
-                $record = RupRecord::where('id_rup', $validated['id_rup'])->first();
+            if (empty($items)) {
+                return response()->json(['success' => false, 'message' => 'Data payload kosong.'], 400);
             }
 
-            // Fallback cari via nama pekerjaan & instansi
-            if (!$record && !empty($validated['nama_pekerjaan']) && !empty($validated['nama_instansi'])) {
-                $record = RupRecord::where('nama_pekerjaan', 'like', '%' . trim($validated['nama_pekerjaan']) . '%')
-                    ->where('nama_instansi', 'like', '%' . trim($validated['nama_instansi']) . '%')
-                    ->first();
+            // 1. Ambil semua identitas pencarian dari batch
+            $sisRupIds = [];
+            $rupIds    = [];
+            $jobNames  = [];
+
+            foreach ($items as $item) {
+                if (!is_array($item)) continue;
+                if (!empty($item['id_sis_rup']))     $sisRupIds[] = (string) $item['id_sis_rup'];
+                if (!empty($item['id_rup']))         $rupIds[]     = (string) $item['id_rup'];
+                if (!empty($item['nama_pekerjaan'])) $jobNames[]   = trim($item['nama_pekerjaan']);
             }
 
-            // 2. Jika belum ada di database, inisialisasi baris baru dengan kolom wajib
-            if (!$record) {
-                $record = new RupRecord();
-                $record->id_rup = (string) Str::uuid();
-                
-                // Isi 2 kolom wajib agar tidak ditolak database
-                $record->nama_jenis_produk_rup = $validated['nama_jenis_produk_rup'] ?? '-';
-                $record->nama_jenis_usaha      = $validated['nama_jenis_usaha'] ?? '-';
-            }
+            // 2. Ambil data eksisting dari database dalam 1 query
+            $existingRecords = RupRecord::query()
+                ->where(function ($q) use ($sisRupIds, $rupIds, $jobNames) {
+                    if (!empty($sisRupIds)) $q->orWhereIn('id_sis_rup', $sisRupIds);
+                    if (!empty($rupIds))     $q->orWhereIn('id_rup', $rupIds);
+                    if (!empty($jobNames))   $q->orWhereIn('nama_pekerjaan', $jobNames);
+                })
+                ->get();
 
-            // 3. Simpan data SPSE dan tandai status prospek
-            $record->fill(array_filter($validated));
-            $record->is_status_spse = 1;
-            $record->is_scrapping   = 1;
-            $record->save();
+            // Helper untuk membuat kunci unik pencocokan (nama_pekerjaan + tahun_anggaran)
+            $makeKey = fn($name, $year) => strtolower(trim($name ?? '')) . '_' . trim($year ?? '');
+
+            // Indeks data di memori PHP
+            $bySisRup  = $existingRecords->whereNotNull('id_sis_rup')->keyBy('id_sis_rup');
+            $byRup     = $existingRecords->whereNotNull('id_rup')->keyBy('id_rup');
+            $byJobName = $existingRecords->keyBy(fn($r) => $makeKey($r->nama_pekerjaan, $r->tahun_anggaran));
+
+            $now = now();
+            $newRecords = [];
+            $updatedCount = 0;
+
+            // 3. Eksekusi penyimpanan dengan DB Transaction
+            DB::transaction(function () use ($items, $bySisRup, $byRup, $byJobName, $makeKey, $now, &$newRecords, &$updatedCount) {
+                foreach ($items as $item) {
+                    if (!is_array($item)) continue;
+
+                    $record = null;
+                    $itemKey = $makeKey($item['nama_pekerjaan'] ?? '', $item['tahun_anggaran'] ?? '');
+
+                    // Prioritas 1: Cocokkan via id_sis_rup
+                    if (!empty($item['id_sis_rup']) && isset($bySisRup[(string) $item['id_sis_rup']])) {
+                        $record = $bySisRup[(string) $item['id_sis_rup']];
+                    }
+                    // Prioritas 2: Cocokkan via id_rup
+                    elseif (!empty($item['id_rup']) && isset($byRup[(string) $item['id_rup']])) {
+                        $record = $byRup[(string) $item['id_rup']];
+                    }
+                    // Prioritas 3: Fallback ke kombinasi nama + tahun anggaran (case-insensitive)
+                    elseif (!empty($item['nama_pekerjaan']) && isset($byJobName[$itemKey])) {
+                        $record = $byJobName[$itemKey];
+                    }
+
+                    if ($record) {
+                        // Data sudah ada -> Update field
+                        $record->nama_pekerjaan           = $item['nama_pekerjaan'] ?? $record->nama_pekerjaan;
+                        $record->nama_instansi            = $item['nama_instansi'] ?? $record->nama_instansi;
+                        $record->nama_organisasi          = $item['nama_organisasi'] ?? $record->nama_organisasi;
+                        $record->pagu                     = isset($item['pagu']) ? (float) $item['pagu'] : $record->pagu;
+                        $record->nama_jenis_pengadaan     = $item['nama_jenis_pengadaan'] ?? $record->nama_jenis_pengadaan;
+                        $record->nama_metode_pengadaan    = $item['nama_metode_pengadaan'] ?? $record->nama_metode_pengadaan;
+                        $record->waktu_pemilihan_penyedia = $item['waktu_pemilihan_penyedia'] ?? $record->waktu_pemilihan_penyedia;
+                        $record->lokasi_pekerjaan         = $item['lokasi_pekerjaan'] ?? $record->lokasi_pekerjaan;
+                        $record->tahun_anggaran           = $item['tahun_anggaran'] ?? $record->tahun_anggaran;
+                        
+                        if (!empty($item['id_sis_rup'])) {
+                            $record->id_sis_rup = $item['id_sis_rup'];
+                        }
+
+                        $record->is_status_spse = 1;
+                        $record->is_scrapping   = 1;
+
+                        if (is_null($record->prospek_at)) {
+                            $record->prospek_at = $now;
+                        }
+
+                        $record->save();
+                        $updatedCount++;
+                    } else {
+                        // Data baru -> Kumpulkan untuk bulk insert
+                        $newRecords[] = [
+                            'id_rup'                   => !empty($item['id_rup']) ? $item['id_rup'] : (string) Str::uuid(),
+                            'id_sis_rup'               => $item['id_sis_rup'] ?? null,
+                            'nama_pekerjaan'           => $item['nama_pekerjaan'] ?? null,
+                            'nama_instansi'            => $item['nama_instansi'] ?? null,
+                            'nama_organisasi'          => $item['nama_organisasi'] ?? null,
+                            'pagu'                     => isset($item['pagu']) ? (float) $item['pagu'] : 0,
+                            'nama_jenis_pengadaan'     => $item['nama_jenis_pengadaan'] ?? null,
+                            'nama_metode_pengadaan'    => $item['nama_metode_pengadaan'] ?? null,
+                            'waktu_pemilihan_penyedia' => $item['waktu_pemilihan_penyedia'] ?? null,
+                            'lokasi_pekerjaan'         => $item['lokasi_pekerjaan'] ?? null,
+                            'tahun_anggaran'           => $item['tahun_anggaran'] ?? null,
+                            'nama_jenis_produk_rup'    => $item['nama_jenis_produk_rup'] ?? '-',
+                            'nama_jenis_usaha'         => $item['nama_jenis_usaha'] ?? '-',
+                            'is_status_spse'           => 1,
+                            'is_scrapping'             => 1,
+                            'prospek_at'               => $now,
+                            'created_at'               => $now,
+                            'updated_at'               => $now,
+                        ];
+                    }
+                }
+
+                // Bulk insert data baru
+                if (!empty($newRecords)) {
+                    RupRecord::insert($newRecords);
+                }
+            });
 
             return response()->json([
                 'success' => true,
-                'message' => 'Data scraping SPSE berhasil masuk ke data prospek.',
-                'data'    => $record,
+                'message' => 'Berhasil memproses ' . count($items) . ' data SPSE (' . count($newRecords) . ' baru, ' . $updatedCount . ' diperbarui).',
+                'total'   => count($items),
             ]);
+
         } catch (\Throwable $e) {
             Log::error('ProspekApiController importSpse error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => basename($e->getFile()),
             ], 500);
         }
     }

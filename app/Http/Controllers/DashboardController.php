@@ -181,7 +181,9 @@ class DashboardController extends Controller
             $recordsData = $records->map(function ($record) {
                 return [
                     'id' => $record->id,
-                    'id_rup' => $record->id_rup,
+                    //'id_rup' => $record->id_rup,
+                    'id_rup' => !empty($record->id_sis_rup) ? $record->id_sis_rup : $record->id_rup,
+                    'id_sis_rup' => $record->id_sis_rup,
                     'nama_pekerjaan' => $record->nama_pekerjaan,
                     'pagu' => $record->pagu,
                     'nama_metode_pengadaan' => $record->nama_metode_pengadaan,
@@ -520,22 +522,24 @@ class DashboardController extends Controller
 
                     // 3. Simpan: Update jika ada record lama, atau Insert jika record baru
                     if ($existingRecord) {
-                        $existingRecord->fill($normalized);
+                        $updateData = $normalized;
+
+                        // Supaya tidak tersentuh/tertimpa saat update
+                        unset($updateData['id_rup'], $updateData['id_sis_rup']);
+
+                        $existingRecord->fill($updateData);
                         $existingRecord->is_scrapping = 1;
                         $existingRecord->is_sirup = 1;
                         $existingRecord->is_status_spse = 1;
-
-                                        // Pastikan id_rup berisi format UUID yang valid
-                    $isUuid = preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', (string) $existingRecord->id_rup);
-                    if (!$isUuid) {
-                        $existingRecord->id_rup = (string) Str::uuid();
-                    }
                         
+                        // ID lama dibiarkan utuh apa adanya (tidak diganti ke UUID)
                         $existingRecord->save();
                         $updated++;
                     } else {
-                        // Untuk data baru: id_rup diisi UID unik baru
-                        $normalized['id_rup'] = (string) Str::uuid();
+                        // Untuk data yang benar-benar baru:
+                        if (empty($normalized['id_rup'])) {
+                            $normalized['id_rup'] = (string) Str::uuid();
+                        }
                         $normalized['is_scrapping'] = 1;
                         $normalized['is_sirup'] = 1;
                         $normalized['is_status_spse'] = 1;
