@@ -15,6 +15,8 @@ class RupRecord extends Model
 {
     protected $table = 'import_rencana_umum_pengadaan';
 
+    protected $guarded = ['id'];
+
     protected $fillable = [
         'id_rup',
         'nama_pekerjaan',

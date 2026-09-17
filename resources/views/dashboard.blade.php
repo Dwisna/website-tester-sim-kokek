@@ -277,7 +277,7 @@
             data-created="{{ isset($record['created_at']) ? \Carbon\Carbon::parse($record['created_at'])->toIso8601String() : '' }}">
             
             <td>{{ $record['id'] ?? '' }}</td>
-            <td>{{ $record['id_rup'] ?? '' }}</td>
+            <td>{{ $record['id_sis_rup'] ?? $record['id_rup'] ?? '' }}</td>
             <td>{{ $record['nama_pekerjaan'] ?? '' }}</td>
             <td> Rp {{ number_format((float) preg_replace('/[^0-9.\-]/', '', $record['pagu'] ?? '0'), 0, ',', '.') }}</td>
             <td>{{ $record['nama_metode_pengadaan'] ?? '' }}</td>
@@ -529,7 +529,7 @@
 
                 tr.innerHTML = `
                     <td>${r.id}</td>
-                    <td>${r.id_rup ?? ''}</td>
+                    <td>${r.id_sis_rup || r.id_rup || ''}</td>
                     <td>${r.nama_pekerjaan ?? ''}</td>
                     <td>${formatRupiah(r.pagu)}</td>
                     <td>${r.nama_metode_pengadaan ?? ''}</td>
@@ -887,7 +887,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     row.innerHTML = `
                         <td>${record.id ?? ''}</td>
-                        <td>${record.id_rup ?? ''}</td>
+                        <td>${record.id_sis_rup || record.id_rup || ''}</td>
                         <td>${record.nama_pekerjaan ?? ''}</td>
                         <td>${formatRupiah(record.pagu)}</td>
                         <td>${record.nama_metode_pengadaan ?? ''}</td>
