@@ -45,6 +45,10 @@ class RupRecord extends Model
         'id_nomor_surat',
         'input_id',
         'prospek_at',
+        'tahap',
+        'tahap_mulai',
+        'tahap_sampai',
+        'tahap_perubahan',
     ];
 
     protected $casts = [
