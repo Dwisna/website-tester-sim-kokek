@@ -13,92 +13,98 @@ use Illuminate\Support\Str;
 class ProspekApiController extends Controller
 {
     public function index(Request $request): JsonResponse
-{
-    try {
-        $perPage = (int) $request->input('per_page', 10);
-        $search  = $request->input('search');
+    {
+        try {
+            $perPage = (int) $request->input('per_page', 10);
+            $search  = $request->input('search');
 
-        // Query dasar data prospek
-        $baseQuery = RupRecord::query()
-            ->where('is_status_spse', 1)
-            ->whereNull('deleted_at');
+            // Query dasar data prospek
+            $baseQuery = RupRecord::query()
+                ->where('is_status_spse', 1)
+                ->whereNull('deleted_at');
 
-        // 1. Hitung Statistik berdasarkan kapan data masuk prospek (prospek_at)
-        $now = now();
-        $stats = [
-            'total'      => (clone $baseQuery)->count(),
-            'hari_ini'   => (clone $baseQuery)->whereDate('prospek_at', $now->toDateString())->count(),
-            'minggu_ini' => (clone $baseQuery)->whereBetween('prospek_at', [
-                $now->copy()->startOfWeek(), 
-                $now->copy()->endOfWeek()
-            ])->count(),
-            'bulan_ini'  => (clone $baseQuery)->whereYear('prospek_at', $now->year)
-                                              ->whereMonth('prospek_at', $now->month)
-                                              ->count(),
-        ];
-
-        // 2. Query untuk tabel dengan filter pencarian
-        $query = clone $baseQuery;
-
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('nama_pekerjaan', 'like', "%{$search}%")
-                  ->orWhere('nama_instansi', 'like', "%{$search}%")
-                  ->orWhere('nama_organisasi', 'like', "%{$search}%")
-                  ->orWhere('id_sis_rup', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->filled('tahun_anggaran')) {
-            $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
-        }
-
-        $records = $query->orderByDesc('prospek_at')->orderByDesc('id')->paginate($perPage);
-
-        $prospekData = $records->map(function ($item) {
-            return [
-                'id'                        => $item->id,
-                'id_rup'                    => $item->id_rup,
-                'id_sis_rup'                => $item->id_sis_rup,
-                'nama_pekerjaan'            => $item->nama_pekerjaan,
-                'pagu'                      => $item->pagu,
-                'nama_jenis_pengadaan'      => $item->nama_jenis_pengadaan,
-                'nama_metode_pengadaan'     => $item->nama_metode_pengadaan,
-                'waktu_pemilihan_penyedia'  => $item->waktu_pemilihan_penyedia,
-                'nama_instansi'             => $item->nama_instansi,
-                'nama_organisasi'           => $item->nama_organisasi,
-                'lokasi_pekerjaan'          => $item->lokasi_pekerjaan,
-                'tahun_anggaran'            => $item->tahun_anggaran,
-                'status'                    => 'Daftar',
-                'created_at'                => $item->created_at?->toDateTimeString(),
-                'prospek_at'                => $item->prospek_at?->toDateTimeString(),
+            // 1. Hitung Statistik berdasarkan kapan data masuk prospek (prospek_at)
+            $now = now();
+            $stats = [
+                'total'      => (clone $baseQuery)->count(),
+                'hari_ini'   => (clone $baseQuery)->whereDate('prospek_at', $now->toDateString())->count(),
+                'minggu_ini' => (clone $baseQuery)->whereBetween('prospek_at', [
+                    $now->copy()->startOfWeek(), 
+                    $now->copy()->endOfWeek()
+                ])->count(),
+                'bulan_ini'  => (clone $baseQuery)->whereYear('prospek_at', $now->year)
+                                                  ->whereMonth('prospek_at', $now->month)
+                                                  ->count(),
             ];
-        });
 
-        return response()->json([
-            'success' => true,
-            'stats'   => $stats, // <-- Objek statistik dikirim ke Project 2
-            'data'    => $prospekData,
-            'meta'    => [
-                'current_page' => $records->currentPage(),
-                'last_page'    => $records->lastPage(),
-                'per_page'     => $records->perPage(),
-                'total'        => $records->total(),
-                'from'         => $records->firstItem(),
-                'to'           => $records->lastItem(),
-            ],
-        ]);
-    } catch (\Throwable $e) {
-        Log::error('ProspekApiController error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            // 2. Query untuk tabel dengan filter pencarian
+            $query = clone $baseQuery;
 
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage(),
-            'line'    => $e->getLine(),
-            'file'    => basename($e->getFile()),
-        ], 500);
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nama_pekerjaan', 'like', "%{$search}%")
+                      ->orWhere('nama_instansi', 'like', "%{$search}%")
+                      ->orWhere('nama_organisasi', 'like', "%{$search}%")
+                      ->orWhere('id_sis_rup', 'like', "%{$search}%")
+                      ->orWhere('tahap', 'like', "%{$search}%");
+                });
+            }
+
+            if ($request->filled('tahun_anggaran')) {
+                $query->where('tahun_anggaran', $request->input('tahun_anggaran'));
+            }
+
+            $records = $query->orderByDesc('prospek_at')->orderByDesc('id')->paginate($perPage);
+
+            $prospekData = $records->map(function ($item) {
+                return [
+                    'id'                        => $item->id,
+                    'id_rup'                    => $item->id_rup,
+                    'id_sis_rup'                => $item->id_sis_rup,
+                    'nama_pekerjaan'            => $item->nama_pekerjaan,
+                    'pagu'                      => $item->pagu,
+                    'nama_jenis_pengadaan'      => $item->nama_jenis_pengadaan,
+                    'nama_metode_pengadaan'     => $item->nama_metode_pengadaan,
+                    'waktu_pemilihan_penyedia'  => $item->waktu_pemilihan_penyedia,
+                    'nama_instansi'             => $item->nama_instansi,
+                    'nama_organisasi'           => $item->nama_organisasi,
+                    'lokasi_pekerjaan'          => $item->lokasi_pekerjaan,
+                    'tahun_anggaran'            => $item->tahun_anggaran,
+                    'status'                    => 'Daftar',
+                    // Data kolom tahapan SPSE
+                    'tahap'                     => $item->tahap,
+                    'tahap_mulai'               => $item->tahap_mulai,
+                    'tahap_sampai'              => $item->tahap_sampai,
+                    'tahap_perubahan'           => $item->tahap_perubahan ?? 'Tidak Ada',
+                    'created_at'                => $item->created_at?->toDateTimeString(),
+                    'prospek_at'                => $item->prospek_at?->toDateTimeString(),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'stats'   => $stats,
+                'data'    => $prospekData,
+                'meta'    => [
+                    'current_page' => $records->currentPage(),
+                    'last_page'    => $records->lastPage(),
+                    'per_page'     => $records->perPage(),
+                    'total'        => $records->total(),
+                    'from'         => $records->firstItem(),
+                    'to'           => $records->lastItem(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('ProspekApiController error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => basename($e->getFile()),
+            ], 500);
+        }
     }
-}
 
     /**
      * Endpoint untuk import data hasil scraping SPSE ke data prospek
@@ -189,6 +195,12 @@ class ProspekApiController extends Controller
                         $record->lokasi_pekerjaan         = $item['lokasi_pekerjaan'] ?? $record->lokasi_pekerjaan;
                         $record->tahun_anggaran           = $item['tahun_anggaran'] ?? $record->tahun_anggaran;
                         
+                        // Update tahapan tender
+                        $record->tahap                    = $item['tahap'] ?? $record->tahap;
+                        $record->tahap_mulai              = $item['tahap_mulai'] ?? $record->tahap_mulai;
+                        $record->tahap_sampai             = $item['tahap_sampai'] ?? $record->tahap_sampai;
+                        $record->tahap_perubahan          = $item['tahap_perubahan'] ?? $record->tahap_perubahan ?? 'Tidak Ada';
+
                         if (!empty($item['id_sis_rup'])) {
                             $record->id_sis_rup = $item['id_sis_rup'];
                         }
@@ -223,6 +235,11 @@ class ProspekApiController extends Controller
                             'prospek_at'               => $now,
                             'created_at'               => $now,
                             'updated_at'               => $now,
+                            // Tambahan kolom tahapan SPSE
+                            'tahap'                    => $item['tahap'] ?? null,
+                            'tahap_mulai'              => $item['tahap_mulai'] ?? null,
+                            'tahap_sampai'             => $item['tahap_sampai'] ?? null,
+                            'tahap_perubahan'          => $item['tahap_perubahan'] ?? 'Tidak Ada',
                         ];
                     }
                 }
