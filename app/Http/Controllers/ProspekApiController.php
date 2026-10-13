@@ -136,8 +136,9 @@ class ProspekApiController extends Controller
 
             foreach ($items as $item) {
                 if (!is_array($item)) continue;
-                if (!empty($item['id_sis_rup']))     $sisRupIds[] = (string) $item['id_sis_rup'];
-                if (!empty($item['id_rup']))         $rupIds[]     = (string) $item['id_rup'];
+                $packageId = $this->resolvePackageId($item);
+                if (!empty($packageId))            $sisRupIds[] = $packageId;
+                if (!empty($item['id_rup']))       $rupIds[]     = (string) $item['id_rup'];
                 if (!empty($item['nama_pekerjaan'])) $jobNames[]   = trim($item['nama_pekerjaan']);
             }
 
@@ -159,20 +160,22 @@ class ProspekApiController extends Controller
             $byJobName = $existingRecords->keyBy(fn($r) => $makeKey($r->nama_pekerjaan, $r->tahun_anggaran));
 
             $now = now();
+            $newRecordsByKey = [];
             $newRecords = [];
             $updatedCount = 0;
 
             // 3. Eksekusi penyimpanan dengan DB Transaction
-            DB::transaction(function () use ($items, $bySisRup, $byRup, $byJobName, $makeKey, $now, &$newRecords, &$updatedCount) {
+            DB::transaction(function () use ($items, $bySisRup, $byRup, $byJobName, $makeKey, $now, &$newRecordsByKey, &$updatedCount) {
                 foreach ($items as $item) {
                     if (!is_array($item)) continue;
 
                     $record = null;
-                    $itemKey = $makeKey($item['nama_pekerjaan'] ?? '', $item['tahun_anggaran'] ?? '');
+                    $packageId = $this->resolvePackageId($item);
+                    $itemKey = $this->buildImportKey($item, $makeKey);
 
                     // Prioritas 1: Cocokkan via id_sis_rup
-                    if (!empty($item['id_sis_rup']) && isset($bySisRup[(string) $item['id_sis_rup']])) {
-                        $record = $bySisRup[(string) $item['id_sis_rup']];
+                    if (!empty($packageId) && isset($bySisRup[$packageId])) {
+                        $record = $bySisRup[$packageId];
                     }
                     // Prioritas 2: Cocokkan via id_rup
                     elseif (!empty($item['id_rup']) && isset($byRup[(string) $item['id_rup']])) {
@@ -201,10 +204,6 @@ class ProspekApiController extends Controller
                         $record->tahap_sampai             = $item['tahap_sampai'] ?? $record->tahap_sampai;
                         $record->tahap_perubahan          = $item['tahap_perubahan'] ?? $record->tahap_perubahan ?? 'Tidak Ada';
 
-                        if (!empty($item['id_sis_rup'])) {
-                            $record->id_sis_rup = $item['id_sis_rup'];
-                        }
-
                         $record->is_status_spse = 1;
                         $record->is_scrapping   = 1;
 
@@ -215,10 +214,14 @@ class ProspekApiController extends Controller
                         $record->save();
                         $updatedCount++;
                     } else {
+                        if (empty($itemKey) || isset($newRecordsByKey[$itemKey])) {
+                            continue;
+                        }
+
                         // Data baru -> Kumpulkan untuk bulk insert
-                        $newRecords[] = [
-                            'id_rup'                   => !empty($item['id_rup']) ? $item['id_rup'] : (string) Str::uuid(),
-                            'id_sis_rup'               => $item['id_sis_rup'] ?? null,
+                        $newRecordsByKey[$itemKey] = [
+                            'id_rup'                   => (string) Str::uuid(),
+                            'id_sis_rup'               => $packageId,
                             'nama_pekerjaan'           => $item['nama_pekerjaan'] ?? null,
                             'nama_instansi'            => $item['nama_instansi'] ?? null,
                             'nama_organisasi'          => $item['nama_organisasi'] ?? null,
@@ -245,6 +248,8 @@ class ProspekApiController extends Controller
                 }
 
                 // Bulk insert data baru
+                $newRecords = array_values($newRecordsByKey);
+
                 if (!empty($newRecords)) {
                     RupRecord::insert($newRecords);
                 }
@@ -266,5 +271,33 @@ class ProspekApiController extends Controller
                 'file'    => basename($e->getFile()),
             ], 500);
         }
+    }
+
+    private function resolvePackageId(array $item): ?string
+    {
+        $packageId = $item['id_sis_rup'] ?? $item['id_rup'] ?? null;
+
+        if ($packageId === null) {
+            return null;
+        }
+
+        $packageId = trim((string) $packageId);
+
+        return $packageId !== '' ? $packageId : null;
+    }
+
+    private function buildImportKey(array $item, callable $makeKey): ?string
+    {
+        $packageId = $this->resolvePackageId($item);
+
+        if (!empty($packageId)) {
+            return 'pkg:' . mb_strtolower($packageId);
+        }
+
+        if (!empty($item['nama_pekerjaan'])) {
+            return 'job:' . $makeKey($item['nama_pekerjaan'], $item['tahun_anggaran'] ?? '');
+        }
+
+        return null;
     }
 }

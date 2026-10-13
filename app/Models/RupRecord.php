@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class RupRecord extends Model
 {
-    protected $table = 'import_rencana_umum_pengadaan';
+    protected $table = 'import_rencana_umum_pengadaan_demo';
 
     protected $guarded = ['id'];
 

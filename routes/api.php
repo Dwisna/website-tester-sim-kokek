@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TokenController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DaftarPenawaranApiController;
 
 // publik (tanpa token)
 Route::post('/service/token', [TokenController::class, 'issueToken']);
@@ -34,4 +35,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/prospek', [App\Http\Controllers\ProspekApiController::class, 'index']);
 
     Route::post('/prospek/import-spse', [App\Http\Controllers\ProspekApiController::class, 'importSpse']);
+
+    Route::get('/daftar-penawaran', [DaftarPenawaranApiController::class, 'index']);
+
+    Route::post('/daftar-penawaran', [DaftarPenawaranApiController::class, 'store']);
+
+    Route::get('/daftar-penawaran/{idDil}', [DaftarPenawaranApiController::class, 'show']);
 });
