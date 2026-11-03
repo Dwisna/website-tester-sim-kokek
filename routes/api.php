@@ -30,7 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     //Route::get('/notifications', [DashboardController::class, 'notificationsApi']);
     
     // 5. Download Excel
-    Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
+    //Route::get('/download', [DashboardController::class, 'download'])->name('rup.download');
 
     Route::get('/prospek', [App\Http\Controllers\ProspekApiController::class, 'index']);
 
